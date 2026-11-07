@@ -150,7 +150,7 @@ test('live integration test suite covering all 20 MCP functions with real data v
   // 11. get_sector_constituents
   await t.test('11. get_sector_constituents: returns constituents of niche sector with returns', async () => {
     assert.ok(nicheTjiid);
-    const constituents = await client.getNicheConstituents(nicheTjiid);
+    const constituents = await client.getSectorConstituents(nicheTjiid);
     assert.ok(constituents);
     assert.ok(Array.isArray(constituents.companies) && constituents.companies.length >= 3);
     assert.ok(constituents.companies.every(c => c.name && c.slug && c.returns && c.returns['1D'] !== undefined));

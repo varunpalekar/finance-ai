@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import * as cheerio from 'cheerio';
 import { get, set, clear, TTL, initDb } from '../cache.js';
@@ -10,6 +11,7 @@ const pdfParse = require('pdf-parse');
 const BASE_URL = 'https://www.tijorifinance.com';
 const DEFAULT_LIMIT = 50;
 const FIELD_RESULT_CAP = 60;
+const DEFAULT_SESSION_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../output/session.json');
 
 const METRIC_MAP = {
   roe:                    'ROE',
@@ -105,7 +107,7 @@ function paginate({ total_results, results }, offset, limit) {
 
 export class TijoriClient {
   constructor({
-    sessionPath = path.resolve(process.cwd(), 'output', 'session.json'),
+    sessionPath = DEFAULT_SESSION_PATH,
     fetchFn = globalThis.fetch,
     cacheDbPath,
     cacheEnabled = true,
@@ -119,25 +121,37 @@ export class TijoriClient {
       initDb(cacheDbPath);
     }
 
-    this._session = this._loadSession();
+    this._sessionMtime = 0;
+    this._session = { cookieHeader: '', csrfToken: '' };
+    this._loadSession();
   }
 
   _loadSession() {
     try {
       if (fs.existsSync(this.sessionPath)) {
+        const stats = fs.statSync(this.sessionPath);
+        if (this._sessionMtime === stats.mtimeMs && this._session?.cookieHeader) {
+          return this._session;
+        }
         const raw = fs.readFileSync(this.sessionPath, 'utf8');
         const data = JSON.parse(raw);
         const cookies = Array.isArray(data) ? data : data.cookies || [];
         const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
         const csrfCookie = cookies.find(c => c.name === 'csrftoken');
         const csrfToken = csrfCookie?.value || '';
-        return { cookieHeader, csrfToken };
+        this._sessionMtime = stats.mtimeMs;
+        this._session = { cookieHeader, csrfToken };
+        return this._session;
       }
     } catch (_) {}
-    return { cookieHeader: '', csrfToken: '' };
+    if (!this._session) {
+      this._session = { cookieHeader: '', csrfToken: '' };
+    }
+    return this._session;
   }
 
   getHeaders() {
+    this._loadSession();
     if (!fs.existsSync(this.sessionPath)) {
       throw new Error(`Session file not found at ${this.sessionPath}. Run "npm run auth" to log in.`);
     }
@@ -153,7 +167,7 @@ export class TijoriClient {
 
   async _fetch(urlOrPath, options = {}) {
     const fullUrl = urlOrPath.startsWith('http') ? urlOrPath : `${this.baseUrl}${urlOrPath}`;
-    const { fresh = false, cacheKey = null, headers = {}, ...restOpts } = options;
+    const { fresh = false, cacheKey = null, headers = {}, signal = options.signal ?? AbortSignal.timeout(15000), ...restOpts } = options;
 
     if (this.cacheEnabled && cacheKey && !fresh) {
       const cached = get(cacheKey, { allowStale: false });
@@ -164,6 +178,8 @@ export class TijoriClient {
         };
       }
     }
+
+    this._loadSession();
 
     const defaultHeaders = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -181,6 +197,7 @@ export class TijoriClient {
 
     const fetchOpts = {
       ...restOpts,
+      signal,
       headers: { ...defaultHeaders, ...headers },
     };
 
@@ -196,6 +213,11 @@ export class TijoriClient {
           err.status = 429;
           throw err;
         }
+      }
+      if (res.status >= 500) {
+        const err = new Error(`HTTP error ${res.status} from ${fullUrl}`);
+        err.status = res.status;
+        throw err;
       }
     } catch (err) {
       if (err.code === 'RATE_LIMITED') throw err;
@@ -213,6 +235,8 @@ export class TijoriClient {
 
     const resUrl = res.url || '';
     if (resUrl.includes('/signin') || res.status === 401 || res.status === 403) {
+      this._sessionMtime = 0;
+      this._session = { cookieHeader: '', csrfToken: '' };
       const err = new Error('Tijori session has expired. Run "npm run auth" to log in again.');
       err.code = 'SESSION_EXPIRED';
       err.status = res.status;
@@ -278,7 +302,7 @@ export class TijoriClient {
 
     const final = { slug, company_id: companyId, name, symbol };
 
-    if (this.cacheEnabled) {
+    if (this.cacheEnabled && companyId !== null) {
       set(cacheKey, final, TTL.PERMANENT, 'json', slug);
     }
 
@@ -414,6 +438,10 @@ export class TijoriClient {
     return result;
   }
 
+  async getSectorConstituents(tjiid, opts) {
+    return this.getNicheConstituents(tjiid, opts);
+  }
+
   async searchScreenerFields({ query, type, fresh = false } = {}) {
     if (!query?.trim()) throw new Error('query is required, e.g. "roce", "promoter holding", "npa"');
 
@@ -544,7 +572,7 @@ export class TijoriClient {
     return screens;
   }
 
-  async _runScreenerApi(endpoint, params) {
+  async _runScreenerApi(endpoint, params, { cacheKey } = {}) {
     const search = new URLSearchParams({
       financial: '',
       alternate: '',
@@ -557,7 +585,11 @@ export class TijoriClient {
       ...params,
     });
 
-    const fetched = await this._fetch(`${endpoint}?${search.toString()}`);
+    const fetched = await this._fetch(`${endpoint}?${search.toString()}`, { cacheKey });
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
     let raw;
     try {
       raw = await fetched.response.json();
@@ -605,7 +637,7 @@ export class TijoriClient {
           whales: screen.whales ? 'True' : 'False',
           source: 'Popular',
           query_id: screen.query_id ?? 'null',
-        });
+        }, { cacheKey });
         if (this.cacheEnabled) {
           set(cacheKey, full, TTL.METRICS, 'json');
         }
@@ -645,7 +677,7 @@ export class TijoriClient {
         whales: superstar_investors ? 'True' : 'False',
         is_sme: sme ? 'True' : 'False',
         source: 'Basic',
-      });
+      }, { cacheKey });
       if (this.cacheEnabled) {
         set(cacheKey, full, TTL.METRICS, 'json');
       }
@@ -1370,7 +1402,7 @@ export class TijoriClient {
     return result;
   }
 
-  async fetchDocument(url, { fresh = false } = {}) {
+  async fetchDocument(url, { fresh = false, signal = AbortSignal.timeout(15000) } = {}) {
     let parsedUrl;
     try {
       parsedUrl = new URL(url);
@@ -1390,10 +1422,18 @@ export class TijoriClient {
       if (cached) return cached;
     }
 
+    this._loadSession();
+    const headers = {
+      'Referer': `${this.baseUrl}/`,
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    };
+    if (this._session.cookieHeader) {
+      headers['Cookie'] = this._session.cookieHeader;
+    }
+
     const res = await this.fetchFn(url, {
-      headers: {
-        'Referer': `${this.baseUrl}/`,
-      },
+      signal,
+      headers,
     });
 
     if (res.status === 403) {

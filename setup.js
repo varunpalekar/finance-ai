@@ -113,7 +113,7 @@ print('   The window closes automatically once you are logged in.');
 print('   (You have 3 minutes)\n');
 
 try {
-  execSync('node discover.js', { stdio: 'inherit', cwd: __dirname });
+  execSync('node scripts/auth.js', { stdio: 'inherit', cwd: __dirname });
   ok('Session saved — you won\'t need to log in again unless the session expires');
 } catch {
   warn('Authentication may have failed. Run "npm run reauth" later if tools stop working.');

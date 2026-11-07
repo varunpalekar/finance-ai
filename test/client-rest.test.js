@@ -85,3 +85,59 @@ test('end-to-end SWR fallback: returns stale cache data with is_stale: true on n
   assert.equal(results._cache_meta?.is_stale, true);
   assert.equal(results._cache_meta?.is_cached, true);
 });
+
+test('HTTP 500 server error triggers SWR fallback to stale cache data', async () => {
+  set(
+    'search:company:tata',
+    [{ name: 'Tata Steel Stale', slug: 'tata-steel-limited' }],
+    -1000,
+    'json',
+    'tata-steel-limited'
+  );
+
+  const mockFetch = async (url) => ({
+    status: 500,
+    url,
+    headers: new Headers(),
+    text: async () => 'Internal Server Error',
+  });
+
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: true });
+  const results = await client.searchCompany('tata');
+  assert.ok(results);
+  assert.equal(results[0].name, 'Tata Steel Stale');
+  assert.equal(results._cache_meta?.is_stale, true);
+});
+
+test('resolveCompanyIds does not permanently cache null company_id', async () => {
+  const mockFetch = createMockFetch({
+    '/company/invalid-slug/': {
+      status: 200,
+      body: '<html><body>No id here</body></html>'
+    }
+  });
+
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: true });
+  const resolved = await client.resolveCompanyIds('invalid-slug');
+  assert.equal(resolved.company_id, null);
+
+  // Verify it was NOT written into cache
+  const { get } = await import('../src/cache.js');
+  const cached = get('resolve:invalid-slug');
+  assert.equal(cached, null);
+});
+
+test('getSectorConstituents acts as direct alias to getNicheConstituents', async () => {
+  const mockFetch = createMockFetch({
+    '/api/v1/niche/price/123/': {
+      status: 200,
+      body: [{ name: 'Test Corp', slug: 'test-corp', weight: 10, eq_weight: 10, data: [1, 2, 3] }]
+    }
+  });
+
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+  const resFromAlias = await client.getSectorConstituents('123');
+  const resFromDirect = await client.getNicheConstituents('123');
+  assert.deepEqual(resFromAlias, resFromDirect);
+  assert.equal(resFromAlias.companies[0].slug, 'test-corp');
+});

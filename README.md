@@ -225,10 +225,10 @@ npx playwright install chromium
 **3. Authenticate**
 
 ```bash
-node discover.js
+npm run auth
 ```
 
-A browser window opens at the Tijori Finance sign-in page. Log in as you normally would. Once you're in, the script visits a few pages in the background to capture API endpoints, then the window closes automatically. Your session is saved to `output/session.json`.
+A browser window opens at the Tijori Finance sign-in page. Log in as you normally would. Once logged in, the window closes automatically. Your session is saved securely to `output/session.json` (`mode: 0o600`).
 
 **4. Configure Claude Desktop**
 
@@ -276,7 +276,12 @@ A browser window opens — log in manually and you're back.
 
 ## How it works
 
-The server uses [Playwright](https://playwright.dev) to maintain an authenticated browser session with Tijori Finance. Each tool navigates to the relevant page or calls the underlying API, parses the response, and returns structured JSON to Claude. Results are cached in-memory (6 hours for financials, 30 minutes for metrics) to keep things fast.
+The server runs on a zero-browser native architecture using `TijoriClient`, powered by Node 24+ native `fetch` and Cheerio. Interactive authentication is run once via `npm run auth` (which uses a headed browser gateway to capture session cookies into `output/session.json` with `mode: 0o600`).
+
+At runtime, no browser processes are spawned:
+- **Instant Response Times**: REST and server-rendered HTML endpoints are queried directly with <200ms latency.
+- **Persistent SQLite Cache**: Cached responses are saved in `~/.cache/tijori/cache.db` with WAL mode and SWR (stale-while-revalidate) offline fallback.
+- **Dynamic Session Reloading**: Updating `session.json` refreshes authentication credentials without restarting the MCP server.
 
 ![Architecture](docs/Arch.png)
 

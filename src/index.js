@@ -3,8 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { TijoriClient } from './client/TijoriClient.js';
 
+// Reserve stdout exclusively for JSON-RPC messages; divert console.log to stderr
+console.log = console.error;
+
 const client = new TijoriClient();
-const server = new McpServer({ name: 'tijori-finance', version: '0.2.0' });
+const server = new McpServer({ name: 'tijori-finance', version: '1.0.0' });
 
 function wrap(fn) {
   return async (args) => {
