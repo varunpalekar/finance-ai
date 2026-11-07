@@ -1,0 +1,24 @@
+{
+  "data": [
+    {
+      "name": "sources",
+      "data": {
+        "1yr": [{ "name": "Cash from Operations", "value": 20000 }],
+        "3yr": [{ "name": "Cash from Operations", "value": 60000 }],
+        "5yr": [{ "name": "Cash from Operations", "value": 95000 }],
+        "7yr": [{ "name": "Cash from Operations", "value": 120000 }],
+        "10yr": [{ "name": "Cash from Operations", "value": 150000 }]
+      }
+    },
+    {
+      "name": "uses",
+      "data": {
+        "1yr": [{ "name": "CapEx", "value": 12000 }],
+        "3yr": [{ "name": "CapEx", "value": 35000 }],
+        "5yr": [{ "name": "CapEx", "value": 55000 }],
+        "7yr": [{ "name": "CapEx", "value": 75000 }],
+        "10yr": [{ "name": "CapEx", "value": 100000 }]
+      }
+    }
+  ]
+}

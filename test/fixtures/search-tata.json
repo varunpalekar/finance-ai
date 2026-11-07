@@ -1,0 +1,16 @@
+[
+  {
+    "company": "Tata Steel Ltd.",
+    "company_id": 1421,
+    "symbol": "TATASTEEL",
+    "slug": "tata-steel-limited",
+    "type": "companies"
+  },
+  {
+    "company": "Tata Motors Ltd.",
+    "company_id": 1420,
+    "symbol": "TATAMOTORS",
+    "slug": "tata-motors-limited",
+    "type": "companies"
+  }
+]

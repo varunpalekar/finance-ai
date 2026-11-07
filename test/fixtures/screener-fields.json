@@ -1,0 +1,8 @@
+{
+  "data": [
+    { "value": "ROCE", "type": "financials", "unit": "%" },
+    { "value": "3yr Avg ROCE", "type": "financials", "unit": "%" },
+    { "value": "Market Capitalization", "type": "financials", "unit": "Cr" },
+    { "value": "Debt to Equity Ratio", "type": "financials", "unit": "" }
+  ]
+}
