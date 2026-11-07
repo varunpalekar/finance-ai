@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import * as cheerio from 'cheerio';
 import { get, set, clear, TTL, initDb } from '../cache.js';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const BASE_URL = 'https://www.tijorifinance.com';
 const DEFAULT_LIMIT = 50;
@@ -1012,6 +1016,318 @@ export class TijoriClient {
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.MARKETS, 'json');
+    }
+
+    return result;
+  }
+
+  async getMarketShare(slug, { fresh = false } = {}) {
+    const cacheKey = `market_share:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+    const metrics = [];
+
+    $('.market_share_card').each((_, card) => {
+      const text = $(card).text() ?? '';
+      const valueMatch = text.match(/([\d.]+)\s*%/);
+      const dateMatch = text.match(/\(as of ([^)]+)\)/i) || text.match(/\(([^)]+)\)/);
+      const metric = $(card).attr('data-title') || $(card).find('.name').text().trim();
+      if (metric) {
+        metrics.push({
+          metric,
+          value: valueMatch ? parseFloat(valueMatch[1]) : null,
+          as_of: dateMatch ? dateMatch[1].trim() : null,
+        });
+      }
+    });
+
+    const result = metrics.length === 0
+      ? { slug, metrics: [], note: 'No market share data available for this company.' }
+      : { slug, metrics };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getOperationalMetrics(slug, { fresh = false } = {}) {
+    const cacheKey = `op_metrics:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    const allMetrics = [];
+    $('li[metricid]').each((_, li) => {
+      const mId = parseInt($(li).attr('metricid'), 10);
+      const name = $(li).attr('title') || $(li).text().trim();
+      const unit = $(li).attr('unit')?.trim() || null;
+      const indent = $(li).attr('indent') || '0';
+      if (mId && name) {
+        allMetrics.push({ metric_id: mId, name, unit, indent });
+      }
+    });
+
+    const onclickAttr = $('li[metricid][onclick]').attr('onclick') || '';
+    const idMatch = onclickAttr.match(/company_op_metrics\/(\d+)\//);
+    let companyId = idMatch ? parseInt(idMatch[1], 10) : null;
+    if (!companyId) {
+      const scriptIdMatch = html.match(/"company_id"\s*:\s*(\d+)/);
+      if (scriptIdMatch) companyId = parseInt(scriptIdMatch[1], 10);
+    }
+
+    const topLevel = allMetrics.filter(m => m.indent === '0');
+    const targetMetrics = topLevel.length > 0 ? topLevel : allMetrics;
+
+    if (!companyId || targetMetrics.length === 0) {
+      const result = { slug, metrics: [], note: 'No operational metrics found for this company.' };
+      if (this.cacheEnabled) {
+        set(cacheKey, result, TTL.METRICS, 'json', slug);
+      }
+      return result;
+    }
+
+    const metricData = await Promise.all(targetMetrics.map(async (metric) => {
+      try {
+        const opRes = await this._fetch(`/api/v1/ind/company_op_metrics/${companyId}/${metric.metric_id}/`);
+        const data = await opRes.response.json();
+        const series = Array.isArray(data?.data) ? data.data : [];
+        const latest = series.at(-1);
+        const history = series.map(([ts, val]) => ({
+          date: new Date(ts).toISOString().slice(0, 7),
+          value: val,
+        }));
+        return {
+          name: metric.name,
+          unit: metric.unit,
+          latest_value: latest?.[1] ?? null,
+          latest_date: latest ? new Date(latest[0]).toISOString().slice(0, 7) : null,
+          history,
+        };
+      } catch (e) {
+        return { name: metric.name, unit: metric.unit, latest_value: null, error: e.message };
+      }
+    }));
+
+    const result = { slug, company_id: companyId, metrics: metricData };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.METRICS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getRevenueMix(slug, { fresh = false } = {}) {
+    const cacheKey = `revenue_mix:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    const charts = [];
+    $('.rmix_graph_block').each((_, block) => {
+      const pieEl = $(block).find('.rmix_pie_chart[chart-id]');
+      if (!pieEl.length) return;
+      let latest = [];
+      try { latest = JSON.parse(pieEl.attr('chart-data') ?? '[]'); } catch {}
+      charts.push({
+        chartId: pieEl.attr('chart-id'),
+        title: $(block).find('h4').text().trim() || null,
+        latest_breakdown: latest.map(([name, pct]) => ({ name, pct })),
+      });
+    });
+
+    if (charts.length === 0) {
+      $('.rmix_pie_chart[chart-id]').each((_, pieEl) => {
+        let latest = [];
+        try { latest = JSON.parse($(pieEl).attr('chart-data') ?? '[]'); } catch {}
+        charts.push({
+          chartId: $(pieEl).attr('chart-id'),
+          title: $(pieEl).closest('div').find('h4').text().trim() || null,
+          latest_breakdown: latest.map(([name, pct]) => ({ name, pct })),
+        });
+      });
+    }
+
+    if (charts.length === 0) {
+      const result = { slug, charts: [], note: 'No revenue mix data available for this company.' };
+      if (this.cacheEnabled) {
+        set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+      }
+      return result;
+    }
+
+    const chartsWithHistory = await Promise.all(charts.map(async (chart) => {
+      try {
+        const res = await this._fetch(`/api/rmix/historic/graph/${chart.chartId}`);
+        const data = await res.response.json();
+        const segments = (data?.context ?? []).map(seg => {
+          let history = [];
+          try {
+            history = JSON.parse(seg.graphdata).map(([ts, val]) => ({
+              date: new Date(ts).toISOString().slice(0, 7),
+              value: val,
+            }));
+          } catch {}
+          return { name: seg.fieldname, history };
+        });
+        return { title: chart.title, chart_id: parseInt(chart.chartId, 10), latest_breakdown: chart.latest_breakdown, segments };
+      } catch (e) {
+        return { title: chart.title, chart_id: parseInt(chart.chartId, 10), latest_breakdown: chart.latest_breakdown, error: e.message };
+      }
+    }));
+
+    const result = { slug, charts: chartsWithHistory };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getKnowledgeBase(slug, { fresh = false } = {}) {
+    const cacheKey = `knowledge_base:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    const categories = {
+      annual_reports: [],
+      earnings_releases: [],
+      investor_presentations: [],
+      conference_calls: [],
+    };
+
+    $('a[href*="files.tijorifinance.com"]').each((_, a) => {
+      const href = $(a).attr('href') ?? '';
+      if (!href) return;
+      const file = href.split('/').pop()?.replace('.pdf', '') ?? '';
+      let period = file;
+      const annualMatch = file.match(/^AR-(\d{2})/);
+      const quarterlyMatch = file.match(/^(?:CC|ER|IP)-([A-Za-z]{3})(\d{2})/);
+      if (annualMatch) period = `FY${annualMatch[1]}`;
+      else if (quarterlyMatch) period = `${quarterlyMatch[1]} 20${quarterlyMatch[2]}`;
+
+      const entry = { period, url: href };
+      if (href.includes('Annual%20Report') || href.includes('Annual+Report') || href.includes('AR-')) {
+        categories.annual_reports.push(entry);
+      } else if (href.includes('Earnings%20Release') || href.includes('Earnings+Release') || href.includes('ER-')) {
+        categories.earnings_releases.push(entry);
+      } else if (href.includes('Investor%20Presentation') || href.includes('Investor+Presentation') || href.includes('IP-')) {
+        categories.investor_presentations.push(entry);
+      } else if (href.includes('Conference%20Call') || href.includes('Conference+Call') || href.includes('CC-')) {
+        categories.conference_calls.push(entry);
+      }
+    });
+
+    const result = { slug, ...categories };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async fetchDocument(url, { fresh = false } = {}) {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error('Invalid document URL');
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      throw new Error('Only HTTPS URLs are supported');
+    }
+    if (parsedUrl.hostname !== 'files.tijorifinance.com') {
+      throw new Error('Only files.tijorifinance.com URLs are supported');
+    }
+
+    const cacheKey = `doc:${url}`;
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const res = await this.fetchFn(url, {
+      headers: {
+        'Referer': `${this.baseUrl}/`,
+      },
+    });
+
+    if (res.status === 403) {
+      throw new Error('Access denied — session may have expired. Run: npm run reauth');
+    }
+    if (res.status === 404) {
+      throw new Error('Document not found at this URL');
+    }
+    if (res.status >= 400) {
+      throw new Error(`HTTP ${res.status} from CDN`);
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const origLog = console.log;
+    const origWarn = console.warn;
+    console.log = (...a) => process.stderr.write(a.join(' ') + '\n');
+    console.warn = (...a) => process.stderr.write(a.join(' ') + '\n');
+
+    let parsedData;
+    try {
+      parsedData = await pdfParse(buffer);
+    } finally {
+      console.log = origLog;
+      console.warn = origWarn;
+    }
+
+    const result = {
+      url,
+      pages: parsedData.numpages,
+      text: parsedData.text.trim(),
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.PERMANENT, 'json');
     }
 
     return result;
