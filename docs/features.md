@@ -16,4 +16,5 @@ Living ledger of all capabilities, tool features, and operational requirements.
 | `FEAT-010` | Macro & Raw Material Spreads | `get_macro_indicators` and `get_raw_materials` commodity tracking | Verified | Pass on `crude`, `steel` |
 | `FEAT-011` | Thematic & Conglomerate Baskets | `get_markets`, `get_niche_constituents`, `get_conglomerate_constituents` | Verified | Pass on `Tata Group`, `Defence` |
 | `FEAT-012` | Natural Language Stock Screening| `screen_companies`, `list_popular_screens`, `search_screener_fields` | Verified | Pass on popular screens |
-| `FEAT-013` | Playwright Session Vault | `npm run auth` and `output/session.json` cookie lifecycle | Planned | Awaiting user login |
+| `FEAT-013` | Playwright Session Vault | `scripts/auth.js` (`npm run auth`) and `output/session.json` cookie lifecycle (mode 0600) | Verified | Passes session validation in `test/auth-script.test.js` |
+| `FEAT-014` | Zero-Browser Standalone TijoriClient | Pure Node 24+ fetch + Cheerio client, SQLite WAL cache (`~/.cache/tijori/cache.db`), offline SWR fallback, clear_cache tool | Verified | 20 unit tests pass offline in `npm test` |
