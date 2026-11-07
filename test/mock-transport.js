@@ -9,9 +9,9 @@ export function createMockFetch(routes = {}) {
     let matchedKey = Object.keys(routes).find((key) => {
       if (key === url) return true;
       try {
-        const routeUrl = new URL(key);
-        const reqUrl = new URL(url);
-        return routeUrl.origin === reqUrl.origin && routeUrl.pathname === reqUrl.pathname;
+        const routeUrl = new URL(key, 'https://www.tijorifinance.com');
+        const reqUrl = new URL(url, 'https://www.tijorifinance.com');
+        return routeUrl.pathname === reqUrl.pathname;
       } catch {
         return false;
       }

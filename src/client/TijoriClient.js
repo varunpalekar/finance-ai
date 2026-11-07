@@ -605,4 +605,415 @@ export class TijoriClient {
   clearCache(slug = null) {
     clear(slug);
   }
+
+  async getCompanyOverview(slug, { fresh = false } = {}) {
+    const cacheKey = `overview:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+    const result = { slug };
+
+    $('script:not([src])').each((_, s) => {
+      const text = $(s).text().trim();
+      if (text.includes('company_id') && text.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(text);
+          const { company, company_id, symbol, shortname, slug: sSlug, ind_code, is_banking, mcap, pe } = parsed;
+          Object.assign(result, { company, company_id, symbol, shortname, slug: sSlug || slug, ind_code, is_banking, mcap, pe });
+          if (parsed.quick_look) result.quick_look = parsed.quick_look;
+        } catch (_) {}
+      }
+    });
+
+    const ratios = {};
+    $('.custom_ratio').each((_, el) => {
+      const label = $(el).find('.custom_ratio__field_name').text().trim();
+      const value = $(el).find('.custom_ratio__field_value').text().trim().replace(/\s+/g, ' ');
+      if (label && value) {
+        ratios[label] = value;
+      }
+    });
+    if (Object.keys(ratios).length > 0) result.ratios = ratios;
+
+    const msCards = [];
+    $('.market_share_card').each((_, card) => {
+      const title = $(card).attr('data-title') || $(card).find('.name').text().trim();
+      const value = $(card).find('.values > div:first-child').text().trim() || null;
+      const asof = $(card).find('.asof').text().trim().replace(/[()]/g, '').trim() || null;
+      if (title) {
+        msCards.push({ metric: title, value, as_of: asof });
+      }
+    });
+    if (msCards.length > 0) result.market_share = msCards;
+
+    const pieCharts = [];
+    $('.rmix_pie_chart[chart-data]').each((_, el) => {
+      const title = $(el).closest('.charts_cont').find('h4').text().trim() || null;
+      try {
+        const segments = JSON.parse($(el).attr('chart-data') || '[]');
+        const parsed = segments.map(([name, pct]) => ({ name, pct: Math.round(pct * 10) / 10 }));
+        if (parsed.length > 0) {
+          pieCharts.push({ title, segments: parsed });
+        }
+      } catch (_) {}
+    });
+    if (pieCharts.length > 0) result.revenue_mix = pieCharts;
+
+    if (!result.company) {
+      const title = $('title').text() || '';
+      result.company = title.split('|')[0].trim();
+    }
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.OVERVIEW, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getFinancials(slug, type = 'pl', { fresh = false } = {}) {
+    const TYPE_TO_SECTION = {
+      pl:        'profit_and_loss',
+      bs:        'balance_sheet',
+      cf:        'cash_flow',
+      ratios:    'ratios',
+      quarterly: 'quarterly_results',
+    };
+    const sectionId = TYPE_TO_SECTION[type] || type;
+    const cacheKey = `financials:${slug}:${type}`;
+
+    const fetched = await this._fetch(`/company/${slug}/financials/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    let wrapper = $(`#${sectionId}_table_wrapper`);
+    if (!wrapper.length) {
+      wrapper = $(`#company_table_innertab_${sectionId}_content .dt-container`);
+    }
+    if (!wrapper.length) {
+      wrapper = $('table.dataTable').closest('div');
+    }
+    if (!wrapper.length) {
+      wrapper = $('body');
+    }
+
+    const periodHeaders = [];
+    wrapper.find('thead th.headerItem, thead th').each((_, th) => {
+      const t = $(th).text().trim();
+      if (t && !$(th).hasClass('firstcol') && !$(th).hasClass('compare_col')) {
+        periodHeaders.push(t);
+      }
+    });
+
+    const rows = [];
+    wrapper.find('tbody tr').each((_, tr) => {
+      const label = $(tr).attr('data-id') || $(tr).find('td.firstcol, th:first-child').text().trim();
+      if (!label) return;
+
+      const valueCells = $(tr).find('td.knowledge.numericvalue, td.numericvalue');
+      const cells = valueCells.length ? valueCells : $(tr).find('td:not(.firstcol):not(.compare_col)');
+      const values = [];
+
+      cells.each((_, td) => {
+        const raw = $(td).text().trim().replace(/\s+/g, ' ');
+        values.push(raw === '—' || raw === '-' || raw === '' ? null : raw);
+      });
+
+      const row = { metric: label };
+      values.forEach((val, i) => {
+        const header = periodHeaders[i];
+        if (header) row[header] = val;
+      });
+      rows.push(row);
+    });
+
+    const result = { type, headers: ['metric', ...periodHeaders], rows };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getShareholding(slug, { fresh = false } = {}) {
+    const cacheKey = `shareholding:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/shareholding/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    let bestTable = null;
+    let bestColCount = 0;
+
+    $('table').each((_, tbl) => {
+      const text = $(tbl).text().toLowerCase();
+      const hasSh = text.includes('promoter') && (text.includes('public') || text.includes('fii') || text.includes('foreign') || text.includes('institutions'));
+      if (!hasSh) return;
+
+      const colCount = $(tbl).find('tr:first-child th, tr:first-child td').length;
+      if (colCount > bestColCount) {
+        bestColCount = colCount;
+        bestTable = $(tbl);
+      }
+    });
+
+    if (!bestTable) {
+      return { quarters: [], error: 'Shareholding table not found' };
+    }
+
+    const trs = bestTable.find('tr');
+    if (trs.length < 2) {
+      return { quarters: [], error: 'Table has too few rows' };
+    }
+
+    const headerCells = [];
+    trs.first().find('th, td').each((_, td) => headerCells.push($(td).text().trim()));
+    const quarterPeriods = headerCells.slice(1).filter(Boolean);
+
+    const quarterMap = {};
+    quarterPeriods.forEach(p => { quarterMap[p] = { period: p }; });
+
+    trs.slice(1).each((_, tr) => {
+      const cells = [];
+      $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim()));
+      if (cells.length < 2) return;
+      const category = cells[0];
+      if (!category) return;
+
+      cells.slice(1).forEach((val, idx) => {
+        const period = quarterPeriods[idx];
+        if (!period) return;
+        const cleaned = val.replace('%', '').trim();
+        if (cleaned === '—' || cleaned === '-' || cleaned === '') {
+          quarterMap[period][category] = null;
+        } else {
+          const num = parseFloat(cleaned.replace(/,/g, ''));
+          quarterMap[period][category] = isNaN(num) ? val : num;
+        }
+      });
+    });
+
+    const quarters = Object.values(quarterMap).filter(q => Object.keys(q).length > 1);
+    const result = { quarters };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  _extractSectionTable(html, sectionId) {
+    const $ = cheerio.load(html);
+    const section = $(`#${sectionId}`);
+    const container = section.length ? section : $('body');
+
+    const headTable = container.find('.dt-scroll-head table, .dataTables_scrollHead table, thead');
+    const allHeadCells = [];
+    const targetHeads = headTable.length ? headTable.find('thead th, thead td') : container.find('thead th, thead td');
+    targetHeads.each((_, th) => {
+      const t = $(th).text().trim();
+      if (t) allHeadCells.push(t);
+    });
+
+    const periodHeaders = allHeadCells.filter(h => h.length > 0 && h.toLowerCase() !== 'metric' && h.toLowerCase() !== 'name');
+
+    const bodyTable = container.find('.dt-scroll-body table, .dataTables_scrollBody table, table');
+    const rows = [];
+
+    bodyTable.find('tbody tr').each((_, tr) => {
+      const labelDiv = $(tr).find('.nameofmetriccol');
+      const firstCol = $(tr).find('.firstcol, td:first-child');
+      const label = labelDiv.text().trim() || firstCol.find('a').text().trim() || firstCol.text().trim();
+      if (!label) return;
+
+      const unit = labelDiv.attr('data-unit') || null;
+      const parentAttr = $(tr).attr('parent');
+      const depth = parentAttr !== undefined && parentAttr !== null ? parseInt(parentAttr, 10) : null;
+
+      const dataCells = $(tr).find('td.numericvalue, td.knowledge.numericvalue');
+      const cells = dataCells.length ? dataCells : $(tr).find('td').slice(1);
+      const values = [];
+
+      cells.each((_, td) => {
+        const raw = $(td).text().trim().replace(/\s+/g, ' ');
+        values.push(raw === '—' || raw === '-' || raw === '' ? null : raw);
+      });
+
+      const row = { metric: label };
+      if (unit) row.unit = unit;
+      if (depth !== null && !isNaN(depth)) row.depth = depth;
+
+      values.forEach((val, i) => {
+        const header = periodHeaders[i];
+        if (header) row[header] = val;
+      });
+
+      rows.push(row);
+    });
+
+    return { headers: ['metric', ...periodHeaders], rows };
+  }
+
+  async getRawMaterials(tab, { fresh = false } = {}) {
+    const valid = ['chemicals', 'spreads', 'metals'];
+    if (!valid.includes(tab)) {
+      throw new Error(`Invalid tab "${tab}". Must be: ${valid.join(', ')}`);
+    }
+
+    const cacheKey = `raw_materials:${tab}`;
+    const fetched = await this._fetch('/in/raw-materials', {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const result = this._extractSectionTable(html, tab);
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.COMMODITY, 'json');
+    }
+
+    return result;
+  }
+
+  async getMacroIndicators(tab, { fresh = false } = {}) {
+    const valid = ['industry', 'demand', 'gdp'];
+    if (!valid.includes(tab)) {
+      throw new Error(`Invalid tab "${tab}". Must be: ${valid.join(', ')}`);
+    }
+
+    const cacheKey = `macro:${tab}`;
+    const fetched = await this._fetch('/in/macro', {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const result = this._extractSectionTable(html, tab);
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.COMMODITY, 'json');
+    }
+
+    return result;
+  }
+
+  async getMarkets(tab, { fresh = false } = {}) {
+    const valid = ['headline', 'niche', 'conglomerates'];
+    if (!valid.includes(tab)) {
+      throw new Error(`Invalid tab "${tab}". Must be: ${valid.join(', ')}`);
+    }
+
+    const cacheKey = `markets:${tab}`;
+    const fetched = await this._fetch('/in/markets', {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+    let result;
+
+    if (tab === 'conglomerates') {
+      const wrapper = $('#market__table__groups_wrapper');
+      const rows = [];
+      wrapper.find('tbody tr').each((_, tr) => {
+        if ($(tr).attr('parent') !== '1') return;
+        const nameDiv = $(tr).find('.nameofmetriccol');
+        const label = nameDiv.text().replace(/[+\-]/g, '').trim() || $(tr).find('.firstcol').text().trim();
+        if (label) {
+          rows.push({
+            conglomerate: label,
+            tjiid: $(tr).attr('tjiid') ?? null,
+            myid: $(tr).attr('myid') ?? null,
+          });
+        }
+      });
+      result = { headers: ['conglomerate', 'tjiid', 'myid'], rows };
+    } else if (tab === 'niche') {
+      const wrapper = $('#market__table__niche_wrapper');
+      const firstThead = wrapper.find('thead').first();
+      const headCells = [];
+      firstThead.find('th, td').each((_, th) => {
+        const t = $(th).text().trim();
+        if (t) headCells.push(t);
+      });
+      const periodHeaders = headCells.filter(h => h.length > 0 && h.toLowerCase() !== 'sector' && h.toLowerCase() !== 'name');
+
+      const rows = [];
+      wrapper.find('tbody tr').each((_, tr) => {
+        if ($(tr).attr('parent') !== '1') return;
+        const nameDiv = $(tr).find('.nameofmetriccol');
+        const label = nameDiv.text().replace(/[+\-]/g, '').trim() || $(tr).find('.firstcol').text().trim();
+        if (!label) return;
+
+        const tjiid = $(tr).attr('tjiid') ?? null;
+        const myid = $(tr).attr('myid') ?? null;
+
+        const dataCells = $(tr).find('td.numericvalue, td.knowledge.numericvalue');
+        const cells = dataCells.length ? dataCells : $(tr).find('td').slice(1);
+        const values = [];
+
+        cells.each((_, td) => {
+          const raw = $(td).text().trim().replace(/\s+/g, ' ');
+          values.push(raw === '—' || raw === '-' || raw === '' ? null : raw);
+        });
+
+        const row = { sector: label, tjiid, myid };
+        values.forEach((val, i) => {
+          const header = periodHeaders[i];
+          if (header) row[header] = val;
+        });
+        rows.push(row);
+      });
+      result = { headers: ['sector', 'tjiid', 'myid', ...periodHeaders], rows };
+    } else {
+      result = this._extractSectionTable(html, tab);
+    }
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.MARKETS, 'json');
+    }
+
+    return result;
+  }
 }
