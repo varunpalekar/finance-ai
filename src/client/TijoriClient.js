@@ -459,6 +459,43 @@ export class TijoriClient {
   async listPopularScreens({ fresh = false } = {}) {
     const cacheKey = 'popular_screens';
 
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey, { allowStale: false });
+      if (cached) return cached;
+    }
+
+    // 1. Direct REST endpoint
+    try {
+      const fetched = await this._fetch('/api/filter_queries/popular-query/', { cacheKey, fresh });
+      if (fetched.isCached) return fetched.data;
+      const data = await fetched.response.json();
+      if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+        const screens = [];
+        for (const [category, items] of Object.entries(data)) {
+          if (Array.isArray(items)) {
+            for (const item of items) {
+              screens.push({
+                category: item.group || category,
+                name: item.name,
+                description: item.description ? item.description.replace(/\s+/g, ' ').trim() : '',
+                query_id: item.id ?? null,
+                query: item.financial_query ? item.financial_query.replace(/\r\n/g, ' ').replace(/\s+/g, ' ').trim() : null,
+                alternate_query: item.alt_query ? item.alt_query.replace(/\r\n/g, ' ').replace(/\s+/g, ' ').trim() : null,
+                whales: Boolean(item.whales),
+              });
+            }
+          }
+        }
+        if (screens.length > 0) {
+          if (this.cacheEnabled) {
+            set(cacheKey, screens, TTL.FINANCIALS, 'json');
+          }
+          return screens;
+        }
+      }
+    } catch (_) {}
+
+    // 2. Fallback to HTML table/card scraping
     const fetched = await this._fetch('/filter/popular-queries/', {
       cacheKey,
       fresh,
@@ -1374,8 +1411,14 @@ export class TijoriClient {
 
     const origLog = console.log;
     const origWarn = console.warn;
-    console.log = (...a) => process.stderr.write(a.join(' ') + '\n');
-    console.warn = (...a) => process.stderr.write(a.join(' ') + '\n');
+    const filterWrite = (args) => {
+      const msg = args.join(' ');
+      if (!msg.includes('TT: undefined function') && !msg.includes('Warning: TT:')) {
+        process.stderr.write(msg + '\n');
+      }
+    };
+    console.log = (...a) => filterWrite(a);
+    console.warn = (...a) => filterWrite(a);
 
     let parsedData;
     try {
