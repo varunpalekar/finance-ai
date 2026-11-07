@@ -12,4 +12,5 @@ test('src/index.js has zero imports from browser.js or playwright', () => {
   assert.equal(code.includes('playwright'), false, 'Should not import playwright');
   assert.ok(code.includes('TijoriClient'), 'Should import TijoriClient');
   assert.ok(code.includes('clear_cache'), 'Should register clear_cache tool');
+  assert.ok(code.includes('get_user_info'), 'Should register get_user_info tool');
 });
