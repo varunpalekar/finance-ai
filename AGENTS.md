@@ -224,3 +224,69 @@ Every change to parsers in `src/parsers/` or tools in `src/tools/` must pass ver
 2. **Multi-Segment Global Conglomerate Benchmark**: `tata-steel-limited` (verifies multi-geography revenue mix, crude/iron ore raw material links, debt schedules).
 
 Before submitting changes, run `npm test` and ensure all JSON schemas validate against `zod` definitions.
+
+---
+
+## 6. Implementation & Documentation Governance (MANDATORY)
+
+Whenever modifying code, creating features, introducing architectural changes, or observing runtime anomalies, agents **must strictly comply** with the following governance rules:
+
+### 6.1 Root Cause & Preserving Intended Behavior
+- Diagnose and fix root causes across all affected callers and configurations rather than applying superficial patches.
+- Preserve intended functional behavior and surface errors explicitly (do not silently swallow exceptions).
+- Add or update focused tests covering non-trivial logic, edge cases, error recovery, and target selection.
+
+### 6.2 Feature Ledger (`docs/features.md`)
+- **Requirement**: Create or update `docs/features.md` for **every** feature or requirement change, including minor behavioral updates, manual operating steps, limitations, and verification status.
+- Never let code or workflow modifications ship without an entry in `docs/features.md`.
+
+### 6.3 Architectural Decision Records (`docs/decisions/`)
+- **Requirement**: Draft and update ADRs for architectural and structural decisions.
+- Follow the naming pattern `docs/decisions/NNNN-short-title.md`.
+- Match lifecycle states: keep unresolved designs `Proposed`, record approved designs as `Accepted`, and mark superseded ones as `Superseded by NNNN` (NEVER delete historical ADRs).
+
+### 6.4 Learning Ledger (`docs/learning/`)
+- **Requirement**: Record every empirical discovery, tricky bug postmortem, or operational rule in `docs/learning/NNN-short-title.md` using the next free sequential number.
+- Follow the strict format:
+
+```markdown
+---
+id: "NNN"
+title: "Short statement of the rule"
+status: "Accepted"
+date: YYYY-MM-DD
+supersedes: N/A
+---
+
+## Context
+What happened, on which target, and what was checked.
+
+## Learning / Decision
+The rule to follow next time.
+
+## Rejected Alternatives
+* The other fix, and why it was not used. Write "None" when there was no alternative.
+```
+
+- A learning documents empirical findings and operating rules; it does not replace `docs/features.md` or ADRs.
+- Supersede invalid learnings by number; do not delete them.
+
+### 6.5 Environments and Testing Tracker (`docs/environments-and-testing.md`)
+- **Requirement**: Update `docs/environments-and-testing.md` whenever customer prerequisites, internal test environments, test suites, or customer-side dry-run checks change.
+- Keep statuses honest: `Planned` until implemented, `Verified` **only** with recorded, repeatable evidence.
+
+### 6.6 Operational Guidance Updates
+- Keep directly affected README files, CLI execution examples, configurations, and operational guidance in sync with any changed behavior.
+
+---
+
+## 7. Security, Privacy & Environmental Safeguards
+
+- 🔒 **Environment Secrets Prohibition**:
+  - **NEVER** read, inspect, open, edit, write, or output the contents of `.env` files (e.g., `.env`, `.env.*`, `*.env`).
+  - **NEVER** execute shell commands (`cat .env`, `source .env`, `grep` on `.env`, etc.) that inspect or expose secrets.
+  - If requested to inspect or modify environment secrets or `.env` files, politely refuse and instruct the operator to configure them manually.
+- 🔒 **Workspace Cleanliness**:
+  - Keep all code and research outputs within the workspace directory.
+  - Do not create project files in `/tmp` or root directories unless explicitly authorized.
+
