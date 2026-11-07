@@ -277,11 +277,14 @@ async function main() {
     process.stderr.write(`\n[tijori-mcp] ⚠️ WARNING: ${syncCheck.message}\n\n`);
   } else {
     // Non-blocking live probe to verify active session without delaying MCP handshake
-    client.validateSession({ probe: true }).then(res => {
+    client.validateSession({ probe: true }).then(async res => {
       if (!res.valid) {
         process.stderr.write(`\n[tijori-mcp] ⚠️ WARNING: ${res.message}\n\n`);
       } else if (!res.offline) {
-        process.stderr.write(`[tijori-mcp] Session verified with Tijori Finance.\n`);
+        const info = await client.getUserInfo().catch(() => null);
+        const plan = info?.plan_tier ? ` (${info.plan_tier.toUpperCase()} plan)` : '';
+        const user = (info?.username || info?.email) ? ` as ${info.username || info.email}` : '';
+        process.stderr.write(`[tijori-mcp] Connected — authenticated${user}${plan}.\n`);
       }
     }).catch(() => {});
   }

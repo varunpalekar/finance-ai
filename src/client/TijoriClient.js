@@ -231,10 +231,18 @@ export class TijoriClient {
     const planTierMatch = html.match(/window\.clarity\("set",\s*"plan_tier",\s*"([^"]+)"\)/i);
     const planTier = planTierMatch ? planTierMatch[1] : (isAuthenticated ? 'free' : 'anonymous');
 
+    const emailMatch = html.match(/["']?(?:email|user_email)["']?\s*[:=]\s*["']([^"'\s]+@[^"'\s]+)["']/i);
+    const email = emailMatch ? emailMatch[1] : null;
+
+    const usernameMatch = html.match(/["']?(?:username|user_name|client_id)["']?\s*[:=]\s*["']([^"'\s]{3,30})["']/i);
+    const username = usernameMatch ? usernameMatch[1] : null;
+
     const result = {
       is_authenticated: isAuthenticated,
       plan_tier: planTier,
       session_type: isAuthenticated ? 'authenticated' : 'anonymous_guest',
+      email: email,
+      username: username,
     };
 
     if (this.cacheEnabled && isAuthenticated) {

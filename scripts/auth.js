@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import { existsSync, mkdirSync, writeFileSync, chmodSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TijoriClient } from '../src/client/TijoriClient.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, '..');
@@ -96,6 +97,19 @@ async function main() {
     } catch (_) {}
 
     console.error('Session saved with mode 0600 to output/session.json.');
+
+    // Fetch and display verified user identity and detected plan tier
+    const client = new TijoriClient({ sessionPath: SESSION_PATH, cacheEnabled: false });
+    const info = await client.getUserInfo().catch(() => null);
+
+    console.error('\n┌──────────────────────────────────────────────────────────┐');
+    console.error('│  Authentication Success                                  │');
+    console.error(`│  Status:    ${info?.is_authenticated ? 'Authenticated ✅' : 'Guest / Anonymous ❌'}                        │`);
+    console.error(`│  Plan Tier: ${(info?.plan_tier || 'UNKNOWN').toUpperCase().padEnd(45)}│`);
+    if (info?.username || info?.email) {
+      console.error(`│  User:      ${(info.username || info.email).padEnd(45)}│`);
+    }
+    console.error('└──────────────────────────────────────────────────────────┘\n');
   } finally {
     await browser.close();
   }
