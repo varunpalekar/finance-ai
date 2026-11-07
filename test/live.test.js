@@ -7,9 +7,14 @@ import { TijoriClient } from '../src/client/TijoriClient.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const sessionPath = join(__dirname, '..', 'output', 'session.json');
-const hasSession = existsSync(sessionPath);
 
-test('live integration test suite against benchmark companies', { skip: !hasSession && 'output/session.json not found — run npm run auth to enable live tests' }, async (t) => {
+let isOnline = false;
+try {
+  const probe = await fetch('https://www.tijorifinance.com/api/v1/ind/company_search/?q=tata', { signal: AbortSignal.timeout(3000) });
+  isOnline = probe.ok;
+} catch (_) {}
+
+test('live integration test suite against benchmark companies', { skip: !isOnline && 'Network unreachable or sandboxed — run npm run test:live unsandboxed' }, async (t) => {
   const client = new TijoriClient({ sessionPath, cacheEnabled: true });
 
   await t.test('searchCompany resolves Tata Steel', async () => {

@@ -721,6 +721,53 @@ export class TijoriClient {
     const html = await fetched.response.text();
     const $ = cheerio.load(html);
 
+    // 1. Try extracting from embedded JSON script blob (Tijori SSR pattern)
+    let embeddedData = null;
+    $('script:not([src])').each((_, s) => {
+      const text = $(s).text().trim();
+      if (text.startsWith('{"bs_s_s"') || (text.includes('"report_dates"') && text.includes('"data"'))) {
+        try {
+          embeddedData = JSON.parse(text);
+        } catch (_) {}
+      }
+    });
+
+    if (embeddedData) {
+      let section = null;
+      if (type === 'pl') {
+        section = embeddedData.pl_c_s || embeddedData.pl_s_s || embeddedData.pl_c_d || embeddedData.pl_s_d;
+      } else if (type === 'bs') {
+        section = embeddedData.bs_c_s || embeddedData.bs_s_s || embeddedData.bs_c_d || embeddedData.bs_s_d;
+      } else if (type === 'cf') {
+        section = embeddedData.cf_c || embeddedData.cf_s;
+      } else if (type === 'ratios') {
+        section = embeddedData.fr_c || embeddedData.fr_s;
+      } else if (type === 'quarterly') {
+        section = embeddedData.qt_c || embeddedData.qt_s;
+      }
+
+      if (section && section.report_dates && Array.isArray(section.data)) {
+        const periodHeaders = section.report_dates;
+        const rows = section.data.map(item => {
+          const row = { metric: item.name };
+          (item.value || []).forEach((val, i) => {
+            const h = periodHeaders[i];
+            if (h) {
+              row[h] = val === null || val === undefined ? null : String(val);
+            }
+          });
+          return row;
+        });
+
+        const result = { type, headers: ['metric', ...periodHeaders], rows };
+        if (this.cacheEnabled) {
+          set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+        }
+        return result;
+      }
+    }
+
+    // 2. Fallback to HTML table parsing (for pre-rendered static DOM or test fixtures)
     let wrapper = $(`#${sectionId}_table_wrapper`);
     if (!wrapper.length) {
       wrapper = $(`#company_table_innertab_${sectionId}_content .dt-container`);
@@ -972,12 +1019,14 @@ export class TijoriClient {
     let result;
 
     if (tab === 'conglomerates') {
-      const wrapper = $('#market__table__groups_wrapper');
+      let wrapper = $('#market__table__groups, #market__table__groups_wrapper');
+      if (!wrapper.length) wrapper = $('#conglomerates');
       const rows = [];
       wrapper.find('tbody tr').each((_, tr) => {
         if ($(tr).attr('parent') !== '1') return;
         const nameDiv = $(tr).find('.nameofmetriccol');
-        const label = nameDiv.text().replace(/[+\-]/g, '').trim() || $(tr).find('.firstcol').text().trim();
+        const rawLabel = nameDiv.length ? nameDiv.text() : $(tr).find('td:first-child').text();
+        const label = rawLabel.replace(/\s*\+\s*$/, '').trim().split('\n')[0].trim();
         if (label) {
           rows.push({
             conglomerate: label,
@@ -988,20 +1037,22 @@ export class TijoriClient {
       });
       result = { headers: ['conglomerate', 'tjiid', 'myid'], rows };
     } else if (tab === 'niche') {
-      const wrapper = $('#market__table__niche_wrapper');
+      let wrapper = $('#market__table__niche, #market__table__niche_wrapper');
+      if (!wrapper.length) wrapper = $('#niche');
       const firstThead = wrapper.find('thead').first();
       const headCells = [];
       firstThead.find('th, td').each((_, th) => {
         const t = $(th).text().trim();
         if (t) headCells.push(t);
       });
-      const periodHeaders = headCells.filter(h => h.length > 0 && h.toLowerCase() !== 'sector' && h.toLowerCase() !== 'name');
+      const periodHeaders = headCells.filter(h => h.length > 0 && h.toLowerCase() !== 'sector' && h.toLowerCase() !== 'name' && h.toLowerCase() !== 'in %');
 
       const rows = [];
       wrapper.find('tbody tr').each((_, tr) => {
         if ($(tr).attr('parent') !== '1') return;
         const nameDiv = $(tr).find('.nameofmetriccol');
-        const label = nameDiv.text().replace(/[+\-]/g, '').trim() || $(tr).find('.firstcol').text().trim();
+        const rawLabel = nameDiv.length ? nameDiv.text() : $(tr).find('td:first-child').text();
+        const label = rawLabel.replace(/\s*\+\s*$/, '').trim().split('\n')[0].trim();
         if (!label) return;
 
         const tjiid = $(tr).attr('tjiid') ?? null;
