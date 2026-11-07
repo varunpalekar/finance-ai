@@ -262,6 +262,20 @@ server.registerTool(
 );
 
 async function main() {
+  const syncCheck = await client.validateSession({ probe: false });
+  if (!syncCheck.valid) {
+    process.stderr.write(`\n[tijori-mcp] ⚠️ WARNING: ${syncCheck.message}\n\n`);
+  } else {
+    // Non-blocking live probe to verify active session without delaying MCP handshake
+    client.validateSession({ probe: true }).then(res => {
+      if (!res.valid) {
+        process.stderr.write(`\n[tijori-mcp] ⚠️ WARNING: ${res.message}\n\n`);
+      } else if (!res.offline) {
+        process.stderr.write(`[tijori-mcp] Session verified with Tijori Finance.\n`);
+      }
+    }).catch(() => {});
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

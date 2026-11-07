@@ -24,20 +24,49 @@ async function login(context) {
   const deadline = Date.now() + 3 * 60 * 1000;
   let loggedIn = false;
   while (Date.now() < deadline) {
-    const currentUrl = page.url();
-    if (!currentUrl.includes('/signin')) {
+    const pages = context.pages();
+    const activePage = pages[pages.length - 1] || page;
+    const currentUrl = activePage.url();
+
+    let onTijoriHome = false;
+    try {
+      const u = new URL(currentUrl);
+      const isTijori = u.hostname.endsWith('tijorifinance.com');
+      const isAuthPath = u.pathname.includes('/signin') || u.pathname.includes('/zerodha') || u.pathname.includes('/callback');
+      if (isTijori && !isAuthPath) {
+        onTijoriHome = true;
+      }
+    } catch (_) {}
+
+    const cookies = await context.cookies('https://www.tijorifinance.com');
+    const sessionCookie = cookies.find(c => c.name === 'sessionid' && c.value);
+
+    if (onTijoriHome && sessionCookie) {
       loggedIn = true;
       break;
     }
-    process.stderr.write(`\rWaiting... current URL: ${currentUrl.slice(0, 80)}`);
+
+    if (currentUrl.includes('kite.zerodha.com')) {
+      process.stderr.write('\rWaiting... Complete Zerodha Kite login in the browser window...   ');
+    } else if (currentUrl.includes('accounts.google.com')) {
+      process.stderr.write('\rWaiting... Complete Google login in the browser window...         ');
+    } else {
+      process.stderr.write(`\rWaiting for login... current URL: ${currentUrl.slice(0, 60)}... `);
+    }
     await page.waitForTimeout(1000);
   }
 
   if (!loggedIn) {
-    throw new Error('Timed out — still on signin page after 3 minutes.');
+    throw new Error('Timed out — login was not completed within 3 minutes.');
   }
 
-  console.error(`\nLogged in! URL: ${page.url()}`);
+  console.error('\nVerifying session with Tijori Finance...');
+  const probe = await context.request.get(`${BASE_URL}/api/v1/ind/company_search/?q=tata`);
+  if (!probe.ok() || probe.url().includes('/signin')) {
+    throw new Error('Authentication verification failed — Tijori Finance rejected the session.');
+  }
+
+  console.error(`Logged in and verified successfully!`);
   await page.close();
 }
 

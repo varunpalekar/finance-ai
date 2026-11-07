@@ -42,3 +42,43 @@ test('TijoriClient dynamically reloads session without server restart when sessi
 
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
+
+test('validateSession identifies missing, invalid, and expired sessions', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tijori-val-test-'));
+  const testSessionPath = path.join(tmpDir, 'session.json');
+
+  // Case 1: Missing file
+  const clientMissing = new TijoriClient({ sessionPath: path.join(tmpDir, 'nonexistent.json') });
+  const resMissing = await clientMissing.validateSession();
+  assert.equal(resMissing.valid, false);
+  assert.equal(resMissing.reason, 'SESSION_MISSING');
+
+  // Case 2: File exists but has no sessionid cookie
+  fs.writeFileSync(testSessionPath, JSON.stringify([{ name: 'other_cookie', value: '123' }]));
+  const clientNoSessionId = new TijoriClient({ sessionPath: testSessionPath });
+  const resNoSessionId = await clientNoSessionId.validateSession();
+  assert.equal(resNoSessionId.valid, false);
+  assert.equal(resNoSessionId.reason, 'SESSIONID_MISSING');
+
+  // Case 3: File has sessionid, live probe returns 401/signin (expired)
+  fs.writeFileSync(testSessionPath, JSON.stringify([{ name: 'sessionid', value: 'expired_abc' }]));
+  const mockFetchExpired = async () => ({
+    status: 401,
+    url: 'https://www.tijorifinance.com/account/signin/',
+  });
+  const clientExpired = new TijoriClient({ sessionPath: testSessionPath, fetchFn: mockFetchExpired });
+  const resExpired = await clientExpired.validateSession({ probe: true });
+  assert.equal(resExpired.valid, false);
+  assert.equal(resExpired.reason, 'SESSION_EXPIRED');
+
+  // Case 4: File has sessionid, live probe returns 200 OK
+  const mockFetchValid = async () => ({
+    status: 200,
+    url: 'https://www.tijorifinance.com/api/v1/ind/company_search/?q=tata',
+  });
+  const clientValid = new TijoriClient({ sessionPath: testSessionPath, fetchFn: mockFetchValid });
+  const resValid = await clientValid.validateSession({ probe: true });
+  assert.equal(resValid.valid, true);
+
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});

@@ -165,6 +165,54 @@ export class TijoriClient {
     return headers;
   }
 
+  async validateSession({ probe = false } = {}) {
+    if (!fs.existsSync(this.sessionPath)) {
+      return {
+        valid: false,
+        reason: 'SESSION_MISSING',
+        message: `Session file not found at ${this.sessionPath}. Run "npm run auth" to log in.`,
+      };
+    }
+
+    this._loadSession();
+    if (!this._session.cookieHeader || !this._session.cookieHeader.includes('sessionid=')) {
+      return {
+        valid: false,
+        reason: 'SESSIONID_MISSING',
+        message: 'No sessionid cookie found in session file. Run "npm run auth" to re-authenticate.',
+      };
+    }
+
+    if (probe) {
+      try {
+        const res = await this.fetchFn(`${this.baseUrl}/api/v1/ind/company_search/?q=tata`, {
+          signal: AbortSignal.timeout(3000),
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Referer': `${this.baseUrl}/`,
+            'Cookie': this._session.cookieHeader,
+          },
+        });
+        const url = res.url || '';
+        if (url.includes('/signin') || res.status === 401 || res.status === 403) {
+          return {
+            valid: false,
+            reason: 'SESSION_EXPIRED',
+            message: 'Tijori session has expired or is invalid. Run "npm run auth" to log in again.',
+          };
+        }
+      } catch (_) {
+        return {
+          valid: true,
+          offline: true,
+          message: 'Offline or sandboxed — operating without live probe.',
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
   async _fetch(urlOrPath, options = {}) {
     const fullUrl = urlOrPath.startsWith('http') ? urlOrPath : `${this.baseUrl}${urlOrPath}`;
     const { fresh = false, cacheKey = null, headers = {}, signal = options.signal ?? AbortSignal.timeout(15000), ...restOpts } = options;
