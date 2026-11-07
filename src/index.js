@@ -261,6 +261,16 @@ server.registerTool(
   })
 );
 
+// 21. get_user_info
+server.registerTool(
+  'get_user_info',
+  {
+    description: 'Check Tijori authentication status and active subscription tier (e.g. anonymous_guest, free, pro). Use to verify if session token is logged in.',
+    inputSchema: {},
+  },
+  wrap(() => client.getUserInfo())
+);
+
 async function main() {
   const syncCheck = await client.validateSession({ probe: false });
   if (!syncCheck.valid) {

@@ -185,20 +185,21 @@ export class TijoriClient {
 
     if (probe) {
       try {
-        const res = await this.fetchFn(`${this.baseUrl}/api/v1/ind/company_search/?q=tata`, {
-          signal: AbortSignal.timeout(3000),
+        const res = await this.fetchFn(`${this.baseUrl}/alerts/`, {
+          signal: AbortSignal.timeout(4000),
+          redirect: 'manual',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Referer': `${this.baseUrl}/`,
             'Cookie': this._session.cookieHeader,
           },
         });
-        const url = res.url || '';
-        if (url.includes('/signin') || res.status === 401 || res.status === 403) {
+        const loc = res.headers?.get?.('location') || res.url || '';
+        if ((res.status === 302 && loc.includes('/signin')) || res.status === 401 || res.status === 403) {
           return {
             valid: false,
-            reason: 'SESSION_EXPIRED',
-            message: 'Tijori session has expired or is invalid. Run "npm run auth" to log in again.',
+            reason: 'NOT_AUTHENTICATED',
+            message: 'Tijori session is unauthenticated / guest session. Run "npm run auth" to log in.',
           };
         }
       } catch (_) {
@@ -211,6 +212,36 @@ export class TijoriClient {
     }
 
     return { valid: true };
+  }
+
+  async getUserInfo({ fresh = false } = {}) {
+    const cacheKey = 'user:profile_info';
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey, { allowStale: false });
+      if (cached) return cached;
+    }
+
+    const fetched = await this._fetch('/account/subscription/', { cacheKey, fresh });
+    if (fetched.isCached) return fetched.data;
+
+    const html = await fetched.response.text();
+    const isAuthMatch = html.match(/is_authenticated:\s*(true|false)/i);
+    const isAuthenticated = isAuthMatch ? isAuthMatch[1].toLowerCase() === 'true' : false;
+
+    const planTierMatch = html.match(/window\.clarity\("set",\s*"plan_tier",\s*"([^"]+)"\)/i);
+    const planTier = planTierMatch ? planTierMatch[1] : (isAuthenticated ? 'free' : 'anonymous');
+
+    const result = {
+      is_authenticated: isAuthenticated,
+      plan_tier: planTier,
+      session_type: isAuthenticated ? 'authenticated' : 'anonymous_guest',
+    };
+
+    if (this.cacheEnabled && isAuthenticated) {
+      set(cacheKey, result, TTL.FINANCIALS, 'json');
+    }
+
+    return result;
   }
 
   async _fetch(urlOrPath, options = {}) {

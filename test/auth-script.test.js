@@ -60,25 +60,46 @@ test('validateSession identifies missing, invalid, and expired sessions', async 
   assert.equal(resNoSessionId.valid, false);
   assert.equal(resNoSessionId.reason, 'SESSIONID_MISSING');
 
-  // Case 3: File has sessionid, live probe returns 401/signin (expired)
-  fs.writeFileSync(testSessionPath, JSON.stringify([{ name: 'sessionid', value: 'expired_abc' }]));
+  // Case 3: File has sessionid, live probe returns 302 redirecting to /account/signin/ (guest/expired)
+  fs.writeFileSync(testSessionPath, JSON.stringify([{ name: 'sessionid', value: 'guest_abc' }]));
   const mockFetchExpired = async () => ({
-    status: 401,
-    url: 'https://www.tijorifinance.com/account/signin/',
+    status: 302,
+    headers: new Headers({ location: '/account/signin/?next=/alerts/' }),
   });
   const clientExpired = new TijoriClient({ sessionPath: testSessionPath, fetchFn: mockFetchExpired });
   const resExpired = await clientExpired.validateSession({ probe: true });
   assert.equal(resExpired.valid, false);
-  assert.equal(resExpired.reason, 'SESSION_EXPIRED');
+  assert.equal(resExpired.reason, 'NOT_AUTHENTICATED');
 
-  // Case 4: File has sessionid, live probe returns 200 OK
+  // Case 4: File has sessionid, live probe returns 200 OK (authenticated)
   const mockFetchValid = async () => ({
     status: 200,
-    url: 'https://www.tijorifinance.com/api/v1/ind/company_search/?q=tata',
+    headers: new Headers(),
   });
   const clientValid = new TijoriClient({ sessionPath: testSessionPath, fetchFn: mockFetchValid });
   const resValid = await clientValid.validateSession({ probe: true });
   assert.equal(resValid.valid, true);
 
   fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test('getUserInfo extracts authentication status and plan tier from subscription page', async () => {
+  const htmlAuth = `
+    <html>
+      <script>
+        window.clarity("set", "plan_tier", "pro");
+        var user = { is_authenticated: true };
+      </script>
+    </html>
+  `;
+  const mockFetch = async () => ({
+    status: 200,
+    text: async () => htmlAuth,
+  });
+
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+  const info = await client.getUserInfo();
+  assert.equal(info.is_authenticated, true);
+  assert.equal(info.plan_tier, 'pro');
+  assert.equal(info.session_type, 'authenticated');
 });

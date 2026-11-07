@@ -28,20 +28,17 @@ async function login(context) {
     const activePage = pages[pages.length - 1] || page;
     const currentUrl = activePage.url();
 
-    let onTijoriHome = false;
+    // Verify authentication against protected endpoint that requires login
+    let isFullyAuthenticated = false;
     try {
-      const u = new URL(currentUrl);
-      const isTijori = u.hostname.endsWith('tijorifinance.com');
-      const isAuthPath = u.pathname.includes('/signin') || u.pathname.includes('/zerodha') || u.pathname.includes('/callback');
-      if (isTijori && !isAuthPath) {
-        onTijoriHome = true;
+      const probe = await context.request.get(`${BASE_URL}/alerts/`, { maxRedirects: 0 });
+      const loc = probe.headers()['location'] || '';
+      if (probe.status() === 200 && !loc.includes('/signin')) {
+        isFullyAuthenticated = true;
       }
     } catch (_) {}
 
-    const cookies = await context.cookies('https://www.tijorifinance.com');
-    const sessionCookie = cookies.find(c => c.name === 'sessionid' && c.value);
-
-    if (onTijoriHome && sessionCookie) {
+    if (isFullyAuthenticated) {
       loggedIn = true;
       break;
     }
@@ -60,10 +57,11 @@ async function login(context) {
     throw new Error('Timed out — login was not completed within 3 minutes.');
   }
 
-  console.error('\nVerifying session with Tijori Finance...');
-  const probe = await context.request.get(`${BASE_URL}/api/v1/ind/company_search/?q=tata`);
-  if (!probe.ok() || probe.url().includes('/signin')) {
-    throw new Error('Authentication verification failed — Tijori Finance rejected the session.');
+  console.error('\nValidating authenticated session with Tijori Finance...');
+  const verifyProbe = await context.request.get(`${BASE_URL}/alerts/`, { maxRedirects: 0 });
+  const loc = verifyProbe.headers()['location'] || '';
+  if (verifyProbe.status() !== 200 || loc.includes('/signin')) {
+    throw new Error('Authentication verification failed — Tijori Finance session is not logged in.');
   }
 
   console.error(`Logged in and verified successfully!`);
