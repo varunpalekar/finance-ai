@@ -1,19 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { TijoriClient } from './client/TijoriClient.js';
 
-// Import all tools
-import { searchCompany } from './tools/search.js';
-import { getCompanyOverview, getKnowledgeBase, fetchDocument, getRevenueMix, getMarketShare } from './tools/company.js';
-import { getFinancials } from './tools/financials.js';
-import { getShareholding } from './tools/shareholding.js';
-import { getOperationalMetrics, getFundFlow } from './tools/metrics.js';
-import { getRawMaterials, getMacroIndicators, getMarkets, getNicheConstituents, getConglomerateConstituents } from './tools/market.js';
-import { screenCompanies, listPopularScreens, searchScreenerFields } from './tools/screener.js';
-import { resolveCompanyIds } from './helpers.js';
-import { closeBrowser } from './browser.js';
-
-const server = new McpServer({ name: 'tijori-finance', version: '0.1.0' });
+const client = new TijoriClient();
+const server = new McpServer({ name: 'tijori-finance', version: '0.2.0' });
 
 function wrap(fn) {
   return async (args) => {
@@ -36,7 +27,7 @@ server.registerTool(
     description: 'Search Tijori Finance for companies by name. Returns name and slug. Use the slug with all other tools.',
     inputSchema: { query: z.string().min(1) },
   },
-  wrap(({ query }) => searchCompany(query))
+  wrap(({ query }) => client.searchCompany(query))
 );
 
 // 2. resolve_company_ids
@@ -46,7 +37,7 @@ server.registerTool(
     description: 'Resolve a company slug to its numeric company_id. Required before calling get_fund_flow.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => resolveCompanyIds(slug))
+  wrap(({ slug }) => client.resolveCompanyIds(slug))
 );
 
 // 3. get_company_overview
@@ -56,7 +47,7 @@ server.registerTool(
     description: 'Get company overview: key financial ratios, forensics score, market cap, PE, ROE, ROCE.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => getCompanyOverview(slug))
+  wrap(({ slug }) => client.getCompanyOverview(slug))
 );
 
 // 4. get_financials
@@ -69,7 +60,7 @@ server.registerTool(
       type: z.enum(['pl', 'bs', 'cf', 'ratios', 'quarterly']),
     },
   },
-  wrap(({ slug, type }) => getFinancials(slug, type))
+  wrap(({ slug, type }) => client.getFinancials(slug, type))
 );
 
 // 5. get_shareholding
@@ -79,7 +70,7 @@ server.registerTool(
     description: 'Get 10-quarter shareholding breakdown: promoter %, FII %, DII %, public %.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => getShareholding(slug))
+  wrap(({ slug }) => client.getShareholding(slug))
 );
 
 // 6. get_operational_metrics
@@ -89,7 +80,7 @@ server.registerTool(
     description: 'Get all operational KPIs for a company with latest values and recent trend. Pass the company slug.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => getOperationalMetrics(slug))
+  wrap(({ slug }) => client.getOperationalMetrics(slug))
 );
 
 // 7. get_fund_flow
@@ -108,7 +99,7 @@ server.registerTool(
       ]),
     },
   },
-  wrap(({ company_id, years }) => getFundFlow(company_id, years))
+  wrap(({ company_id, years }) => client.getFundFlow(company_id, years))
 );
 
 // 8. get_raw_materials
@@ -118,7 +109,7 @@ server.registerTool(
     description: 'Get commodity price performance for Chemicals, Spreads, or Metals.',
     inputSchema: { tab: z.enum(['chemicals', 'spreads', 'metals']) },
   },
-  wrap(({ tab }) => getRawMaterials(tab))
+  wrap(({ tab }) => client.getRawMaterials(tab))
 );
 
 // 9. get_macro_indicators
@@ -128,7 +119,7 @@ server.registerTool(
     description: 'Get India macro indicators: industry credit/IIP, demand (GST/auto), or GDP & trade.',
     inputSchema: { tab: z.enum(['industry', 'demand', 'gdp']) },
   },
-  wrap(({ tab }) => getMacroIndicators(tab))
+  wrap(({ tab }) => client.getMacroIndicators(tab))
 );
 
 // 10. get_markets
@@ -140,7 +131,7 @@ server.registerTool(
       tab: z.enum(['headline', 'niche', 'conglomerates']),
     },
   },
-  wrap(({ tab }) => getMarkets(tab))
+  wrap(({ tab }) => client.getMarkets(tab))
 );
 
 // 11. get_sector_constituents
@@ -152,7 +143,7 @@ server.registerTool(
       tjiid: z.number().int().positive(),
     },
   },
-  wrap(({ tjiid }) => getNicheConstituents(tjiid))
+  wrap(({ tjiid }) => client.getNicheConstituents(tjiid))
 );
 
 // 12. get_conglomerate_constituents
@@ -164,7 +155,7 @@ server.registerTool(
       tjiid: z.number().int().positive(),
     },
   },
-  wrap(({ tjiid }) => getConglomerateConstituents(tjiid))
+  wrap(({ tjiid }) => client.getConglomerateConstituents(tjiid))
 );
 
 // 13. get_knowledge_base
@@ -174,17 +165,17 @@ server.registerTool(
     description: 'Get all investor documents for a company: annual reports, earnings releases, investor presentations, conference call transcripts, and curated research links. Returns URLs grouped by document type.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => getKnowledgeBase(slug))
+  wrap(({ slug }) => client.getKnowledgeBase(slug))
 );
 
 // 14. fetch_document
 server.registerTool(
   'fetch_document',
   {
-    description: 'Fetch and extract text from a Tijori Finance document (PDF). Pass a URL returned by get_knowledge_base. Uses the authenticated browser session to bypass CDN access controls. Returns the full text content and page count.',
+    description: 'Fetch and extract text from a Tijori Finance document (PDF). Pass a URL returned by get_knowledge_base. Uses the authenticated session to bypass CDN access controls. Returns the full text content and page count.',
     inputSchema: { url: z.string().url() },
   },
-  wrap(({ url }) => fetchDocument(url))
+  wrap(({ url }) => client.fetchDocument(url))
 );
 
 // 15. get_revenue_mix
@@ -194,30 +185,30 @@ server.registerTool(
     description: 'Get revenue/segment mix breakdowns for a company. Returns latest % breakdown and full historical trend per segment.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => getRevenueMix(slug))
+  wrap(({ slug }) => client.getRevenueMix(slug))
 );
 
-// 15. get_market_share
+// 16. get_market_share
 server.registerTool(
   'get_market_share',
   {
     description: 'Get all market share metrics for a company (e.g. Bank Advances, Credit Cards, Housing Loans). Returns latest % value and as-of date for each metric.',
     inputSchema: { slug: z.string() },
   },
-  wrap(({ slug }) => getMarketShare(slug))
+  wrap(({ slug }) => client.getMarketShare(slug))
 );
 
-// 16. list_popular_screens
+// 17. list_popular_screens
 server.registerTool(
   'list_popular_screens',
   {
     description: 'List all pre-built popular stock screens on Tijori Finance, grouped by category, with each screen\'s name, description, and underlying query. Run one with screen_companies { preset: "<name>" }.',
     inputSchema: {},
   },
-  wrap(() => listPopularScreens())
+  wrap(() => client.listPopularScreens())
 );
 
-// 17. screen_companies
+// 18. screen_companies
 server.registerTool(
   'screen_companies',
   {
@@ -236,10 +227,10 @@ server.registerTool(
       limit: z.number().int().positive().max(500).optional(),
     },
   },
-  wrap((args) => screenCompanies(args))
+  wrap((args) => client.screenCompanies(args))
 );
 
-// 18. search_screener_fields
+// 19. search_screener_fields
 server.registerTool(
   'search_screener_fields',
   {
@@ -249,14 +240,30 @@ server.registerTool(
       type: z.enum(['Financials', 'Products', 'Regions']).optional(),
     },
   },
-  wrap((args) => searchScreenerFields(args))
+  wrap((args) => client.searchScreenerFields(args))
+);
+
+// 20. clear_cache
+server.registerTool(
+  'clear_cache',
+  {
+    description: 'Clear the persistent HTTP cache. Pass an optional company slug to purge cache entries for that stock only, or omit slug to clear the entire cache.',
+    inputSchema: {
+      slug: z.string().optional(),
+    },
+  },
+  wrap(({ slug }) => {
+    client.clearCache(slug);
+    return { success: true, message: slug ? `Cleared cache for slug: ${slug}` : 'Cleared all cache entries' };
+  })
 );
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.on('SIGINT', async () => { await closeBrowser(); process.exit(0); });
-  process.on('SIGTERM', async () => { await closeBrowser(); process.exit(0); });
 }
 
-main().catch(err => { console.error('[tijori-mcp] Fatal:', err.message); process.exit(1); });
+main().catch(err => {
+  process.stderr.write(`[tijori-mcp] Fatal: ${err.message}\n`);
+  process.exit(1);
+});
