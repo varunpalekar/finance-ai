@@ -13,9 +13,11 @@
   "main": "src/index.js",
   "scripts": {
     "setup": "node setup.js",
-    "auth": "node discover.js",
-    "reauth": "node discover.js --reauth",
-    "start": "node src/index.js"
+    "auth": "node scripts/auth.js",
+    "reauth": "node scripts/auth.js --reauth",
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js",
+    "test:live": "node --test test/live.test.js"
   },
   "keywords": [
     "mcp",

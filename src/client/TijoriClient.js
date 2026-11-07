@@ -137,6 +137,20 @@ export class TijoriClient {
     return { cookieHeader: '', csrfToken: '' };
   }
 
+  getHeaders() {
+    if (!fs.existsSync(this.sessionPath)) {
+      throw new Error(`Session file not found at ${this.sessionPath}. Run "npm run auth" to log in.`);
+    }
+    const headers = {};
+    if (this._session.cookieHeader) {
+      headers['Cookie'] = this._session.cookieHeader;
+    }
+    if (this._session.csrfToken) {
+      headers['X-CSRFToken'] = this._session.csrfToken;
+    }
+    return headers;
+  }
+
   async _fetch(urlOrPath, options = {}) {
     const fullUrl = urlOrPath.startsWith('http') ? urlOrPath : `${this.baseUrl}${urlOrPath}`;
     const { fresh = false, cacheKey = null, headers = {}, ...restOpts } = options;
