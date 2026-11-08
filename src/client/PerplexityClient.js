@@ -1,6 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { get, set, TTL } from '../cache.js';
+import { parseCatalysts } from '../parsers/perplexity/catalysts.js';
+import { parseReports } from '../parsers/perplexity/reports.js';
+import { parseEarnings } from '../parsers/perplexity/earnings.js';
+import { parseProfile } from '../parsers/perplexity/profile.js';
+import { parseNews } from '../parsers/perplexity/news.js';
 
 const KNOWN_US_TICKERS = new Set([
   'AAPL', 'MSFT', 'GOOG', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'BRK.A', 'BRK.B',
@@ -244,5 +249,125 @@ export class PerplexityClient {
     } finally {
       this._inFlight.delete(endpoint);
     }
+  }
+
+  async getPriceMovementCatalysts(ticker, options = {}) {
+    const normTicker = this.normalizeTicker(ticker);
+    const limit = options.limit || 100;
+    const endpoint = `/rest/finance/timeline/${normTicker}/entries?limit=${limit}`;
+    const cacheKey = this.cacheKey('timeline', normTicker, `limit=${limit}`);
+    const ttl = TTL.TIMELINE || (24 * 3600 * 1000);
+    const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
+    return parseCatalysts(raw, normTicker);
+  }
+
+  async getBrokerageReports(ticker, options = {}) {
+    const normTicker = this.normalizeTicker(ticker);
+    const endpoint = `/rest/finance/documents/${normTicker}`;
+    const cacheKey = this.cacheKey('reports', normTicker);
+    const ttl = 24 * 3600 * 1000;
+    const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
+    return parseReports(raw, normTicker);
+  }
+
+  async getEarningsIntelligence(ticker, options = {}) {
+    const normTicker = this.normalizeTicker(ticker);
+    const includeTranscript = options.includeTranscript ?? false;
+    const chapterFilter = options.chapterFilter || 'prepared_remarks';
+
+    const earningsEndpoint = `/rest/finance/earnings/${normTicker}`;
+    const earningsCacheKey = this.cacheKey('earnings', normTicker);
+    const earningsRaw = await this.fetchJson(earningsEndpoint, {
+      fresh: options.fresh,
+      ttl: 7 * 86400 * 1000,
+      cacheKey: earningsCacheKey
+    });
+
+    const list = Array.isArray(earningsRaw) ? earningsRaw : [];
+    const activeEvent = options.eventId
+      ? list.find(e => e && e.id === Number(options.eventId))
+      : (list.find(e => e && e.actualRevenue != null) || list[0]);
+
+    if (!activeEvent || !activeEvent.id) {
+      return parseEarnings(earningsRaw, null, null, {
+        ticker: normTicker,
+        eventId: options.eventId,
+        includeTranscript: false
+      });
+    }
+
+    const eventId = activeEvent.id;
+
+    // Stagger request by 150ms before analysis
+    await new Promise(r => setTimeout(r, 150));
+
+    let analysisRaw = null;
+    try {
+      const analysisEndpoint = `/rest/finance/earnings/${normTicker}/analysis/${eventId}`;
+      const analysisCacheKey = this.cacheKey('earnings_analysis', normTicker, `event=${eventId}`);
+      analysisRaw = await this.fetchJson(analysisEndpoint, {
+        fresh: options.fresh,
+        ttl: 30 * 86400 * 1000,
+        cacheKey: analysisCacheKey
+      });
+    } catch (err) {
+      if (err.status !== 404) throw err;
+    }
+
+    let transcriptRaw = null;
+    if (includeTranscript) {
+      // Stagger request by 150ms before transcript
+      await new Promise(r => setTimeout(r, 150));
+      try {
+        const transcriptEndpoint = `/rest/finance/earnings/${normTicker}/transcript/${eventId}`;
+        const transcriptCacheKey = this.cacheKey('earnings_transcript', normTicker, `event=${eventId}`);
+        transcriptRaw = await this.fetchJson(transcriptEndpoint, {
+          fresh: options.fresh,
+          ttl: 30 * 86400 * 1000,
+          cacheKey: transcriptCacheKey
+        });
+      } catch (err) {
+        if (err.status !== 404) throw err;
+      }
+    }
+
+    return parseEarnings(earningsRaw, analysisRaw, transcriptRaw, {
+      ticker: normTicker,
+      eventId,
+      includeTranscript,
+      chapterFilter
+    });
+  }
+
+  async getCompanyStrategicProfile(ticker, options = {}) {
+    const normTicker = this.normalizeTicker(ticker);
+    const quoteEndpoint = `/rest/finance/quote/${normTicker}`;
+    const quoteCacheKey = this.cacheKey('quote', normTicker);
+    const descEndpoint = `/rest/finance/profile/${normTicker}/description`;
+    const descCacheKey = this.cacheKey('profile_description', normTicker);
+
+    const [quoteRes, descRes] = await Promise.allSettled([
+      this.fetchJson(quoteEndpoint, { fresh: options.fresh, ttl: 2 * 3600 * 1000, cacheKey: quoteCacheKey }),
+      this.fetchText(descEndpoint, { fresh: options.fresh, ttl: 7 * 86400 * 1000, cacheKey: descCacheKey })
+    ]);
+
+    if (quoteRes.status === 'rejected') {
+      throw quoteRes.reason;
+    }
+
+    const quoteRaw = quoteRes.value;
+    const descRaw = descRes.status === 'fulfilled' ? descRes.value : '';
+
+    return parseProfile(quoteRaw, descRaw, normTicker);
+  }
+
+  async getCuratedNews(ticker, options = {}) {
+    const normTicker = this.normalizeTicker(ticker);
+    const limit = options.limit || 10;
+    const endpoint = `/rest/finance/publisher-news/${normTicker}?limit=${limit}`;
+    const cacheKey = this.cacheKey('news', normTicker, `limit=${limit}`);
+    const ttl = TTL.NEWS || (3600 * 1000);
+    const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
+    return parseNews(raw, normTicker);
   }
 }

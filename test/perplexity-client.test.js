@@ -68,3 +68,61 @@ describe('PerplexityClient Core', () => {
     );
   });
 });
+
+describe('PerplexityClient High-Level Methods', () => {
+  test('getPriceMovementCatalysts fetches timeline and returns parsed result', async () => {
+    const client = new PerplexityClient();
+    client.fetchJson = async (endpoint, opts) => {
+      assert.ok(endpoint.includes('/timeline/HEROMOTOCO.NS/entries'));
+      return [{ last_modified: '2026-11-08', price: 5478, price_movement: -0.65, description: 'Muhurat trading flat', sources: [] }];
+    };
+
+    const res = await client.getPriceMovementCatalysts('HEROMOTOCO.NS');
+    assert.equal(res.ticker, 'HEROMOTOCO.NS');
+    assert.equal(res.total_entries, 1);
+  });
+
+  test('getEarningsIntelligence staggers analysis and transcript requests by 150ms and handles 404 gracefully', async () => {
+    const client = new PerplexityClient();
+    const timestamps = [];
+
+    client.fetchJson = async (endpoint) => {
+      timestamps.push(Date.now());
+      if (endpoint.includes('/earnings/HEROMOTOCO.NS/analysis/')) {
+        const err = new Error('Not found');
+        err.status = 404;
+        throw err;
+      }
+      if (endpoint.includes('/earnings/HEROMOTOCO.NS/transcript/')) {
+        return { paragraphs: [] };
+      }
+      return [{ id: 718533, fiscalPeriod: 'Q2', fiscalYear: 2027, actualRevenue: 145000000000 }];
+    };
+
+    const res = await client.getEarningsIntelligence('HEROMOTOCO.NS', { includeTranscript: true });
+    assert.equal(res.active_event_id, 718533);
+    assert.deepEqual(res.ai_highlights, []);
+    assert.ok(res.transcript !== null);
+    assert.ok(timestamps.length >= 2);
+    if (timestamps.length >= 3) {
+      assert.ok(timestamps[1] - timestamps[0] >= 140);
+    }
+  });
+
+  test('getCompanyStrategicProfile parallelizes quote and description queries', async () => {
+    const client = new PerplexityClient();
+    client.fetchJson = async (endpoint) => {
+      if (endpoint.includes('/quote/')) return { name: 'Hero MotoCorp Limited', symbol: 'HEROMOTOCO.NS' };
+      throw new Error('Unknown');
+    };
+    client.fetchText = async (endpoint) => {
+      if (endpoint.includes('/profile/')) return 'Hero is leader in two wheelers.';
+      throw new Error('Unknown');
+    };
+
+    const res = await client.getCompanyStrategicProfile('HEROMOTOCO.NS');
+    assert.equal(res.company_name, 'Hero MotoCorp Limited');
+    assert.equal(res.strategic_summary.full_profile, 'Hero is leader in two wheelers.');
+  });
+});
+
