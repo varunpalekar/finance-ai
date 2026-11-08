@@ -141,3 +141,26 @@ test('getSectorConstituents acts as direct alias to getNicheConstituents', async
   assert.deepEqual(resFromAlias, resFromDirect);
   assert.equal(resFromAlias.companies[0].slug, 'test-corp');
 });
+
+test('screenCompanies safely handles null or malformed condition objects without TypeError', async () => {
+  let capturedQuery = null;
+  const mockFetch = async (url) => {
+    capturedQuery = url;
+    return new Response(JSON.stringify({ total_results: 0, data: [] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+
+  // 1. roe condition is valid, debt is null
+  const res = await client.screenCompanies({
+    filters: {
+      roe: { min: 15 },
+      debt: null,
+      invalid: 'not-an-object',
+    },
+  });
+  assert.equal(res.total_results, 0);
+  assert.ok(capturedQuery.includes('ROE+%3E+15'));
+});

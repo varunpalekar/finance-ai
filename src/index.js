@@ -70,10 +70,13 @@ server.registerTool(
 server.registerTool(
   'get_shareholding',
   {
-    description: 'Get 10-quarter shareholding breakdown: promoter %, FII %, DII %, public %.',
-    inputSchema: { slug: z.string() },
+    description: 'Get 10-quarter shareholding breakdown: promoter %, FII %, DII %, public %. Set detailed: true for line-item mutual funds, LIC, and retail tiers.',
+    inputSchema: {
+      slug: z.string(),
+      detailed: z.boolean().optional(),
+    },
   },
-  wrap(({ slug }) => client.getShareholding(slug))
+  wrap(({ slug, detailed }) => client.getShareholding(slug, { detailed }))
 );
 
 // 6. get_operational_metrics
@@ -269,6 +272,80 @@ server.registerTool(
     inputSchema: {},
   },
   wrap(() => client.getUserInfo())
+);
+
+// 22. get_factors_and_benchmarking
+server.registerTool(
+  'get_factors_and_benchmarking',
+  {
+    description: 'Get quantitative moat factors, radar benchmarking scores (0-10 vs peer medians), and 57 qualitative formula explanations.',
+    inputSchema: { slug: z.string() },
+  },
+  wrap(({ slug }) => client.getFactorsAndBenchmarking(slug))
+);
+
+// 23. get_valuation_bands
+server.registerTool(
+  'get_valuation_bands',
+  {
+    description: 'Get statistical valuation bands (1Y, 3Y, 5Y, 10Y P/E percentiles: min, p25, median, p75, max) and peer multiples matrix.',
+    inputSchema: { slug: z.string() },
+  },
+  wrap(({ slug }) => client.getValuationBands(slug))
+);
+
+// 24. get_scenario_projections
+server.registerTool(
+  'get_scenario_projections',
+  {
+    description: 'Get forward-looking Base, Bear, and Bull probabilistic scenarios with odds, triggers, and 5-year financial forecast models.',
+    inputSchema: { slug: z.string() },
+  },
+  wrap(({ slug }) => client.getScenarioProjections(slug))
+);
+
+// 25. get_company_timeline
+server.registerTool(
+  'get_company_timeline',
+  {
+    description: 'Get curated company milestones timeline (date, label) and "What to watch" analyst guidance notes.',
+    inputSchema: { slug: z.string() },
+  },
+  wrap(({ slug }) => client.getCompanyTimeline(slug))
+);
+
+// 26. get_stock_news
+server.registerTool(
+  'get_stock_news',
+  {
+    description: 'Fetch recent real-time financial media headlines from Google News RSS for a ticker, company name, or query.',
+    inputSchema: {
+      query: z.string().min(1),
+      limit: z.number().int().positive().optional(),
+      days: z.number().int().positive().optional(),
+    },
+  },
+  wrap(({ query, limit, days }) => client.getStockNews(query, { limit, days }))
+);
+
+// 27. get_corporate_actions
+server.registerTool(
+  'get_corporate_actions',
+  {
+    description: 'Get historical dividends, bonus issues, stock splits, and rights offerings with ex-dates and details.',
+    inputSchema: { slug: z.string() },
+  },
+  wrap(({ slug }) => client.getCorporateActions(slug))
+);
+
+// 28. get_supply_chain
+server.registerTool(
+  'get_supply_chain',
+  {
+    description: 'Get relational products, industries catered, and operational supplier and customer notes from research disclosures.',
+    inputSchema: { slug: z.string() },
+  },
+  wrap(({ slug }) => client.getSupplyChain(slug))
 );
 
 async function main() {

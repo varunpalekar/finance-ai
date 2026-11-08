@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import * as cheerio from 'cheerio';
 import { get, set, clear, TTL, initDb } from '../cache.js';
+import { computePercentiles } from '../helpers.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -57,9 +58,14 @@ const METRIC_MAP = {
 function buildQuery(filters) {
   const parts = [];
   for (const [key, condition] of Object.entries(filters)) {
+    if (!condition || typeof condition !== 'object') continue;
     const metricName = METRIC_MAP[key.toLowerCase()] ?? key;
-    if (condition.min !== undefined) parts.push(`( ${metricName} > ${condition.min} )`);
-    if (condition.max !== undefined) parts.push(`( ${metricName} < ${condition.max} )`);
+    if (condition.min !== undefined && Number.isFinite(Number(condition.min))) {
+      parts.push(`( ${metricName} > ${condition.min} )`);
+    }
+    if (condition.max !== undefined && Number.isFinite(Number(condition.max))) {
+      parts.push(`( ${metricName} < ${condition.max} )`);
+    }
   }
   if (parts.length === 0) throw new Error('No valid filter conditions provided');
   return parts.join(' and ');
@@ -141,6 +147,10 @@ export class TijoriClient {
         const csrfToken = csrfCookie?.value || '';
         this._sessionMtime = stats.mtimeMs;
         this._session = { cookieHeader, csrfToken };
+        return this._session;
+      } else if (this._sessionMtime > 0) {
+        this._sessionMtime = 0;
+        this._session = { cookieHeader: '', csrfToken: '' };
         return this._session;
       }
     } catch (_) {}
@@ -271,15 +281,20 @@ export class TijoriClient {
     const defaultHeaders = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       'Accept': 'application/json, text/html, */*',
-      'Referer': `${this.baseUrl}/`,
-      'Origin': this.baseUrl,
     };
 
-    if (this._session.cookieHeader) {
-      defaultHeaders['Cookie'] = this._session.cookieHeader;
-    }
-    if (this._session.csrfToken) {
-      defaultHeaders['X-CSRFToken'] = this._session.csrfToken;
+    const hostname = fullUrl.startsWith('http') ? new URL(fullUrl).hostname : '';
+    const isTijoriHost = !fullUrl.startsWith('http') || hostname === 'tijorifinance.com' || hostname.endsWith('.tijorifinance.com');
+
+    if (isTijoriHost) {
+      defaultHeaders['Referer'] = `${this.baseUrl}/`;
+      defaultHeaders['Origin'] = this.baseUrl;
+      if (this._session.cookieHeader) {
+        defaultHeaders['Cookie'] = this._session.cookieHeader;
+      }
+      if (this._session.csrfToken) {
+        defaultHeaders['X-CSRFToken'] = this._session.csrfToken;
+      }
     }
 
     const fetchOpts = {
@@ -295,7 +310,7 @@ export class TijoriClient {
         await new Promise(r => setTimeout(r, 500));
         res = await this.fetchFn(fullUrl, fetchOpts);
         if (res.status === 429) {
-          const err = new Error('Tijori API rate limit exceeded (HTTP 429).');
+          const err = new Error(isTijoriHost ? 'Tijori API rate limit exceeded (HTTP 429).' : `Upstream rate limit exceeded (HTTP 429) from ${fullUrl}`);
           err.code = 'RATE_LIMITED';
           err.status = 429;
           throw err;
@@ -321,7 +336,7 @@ export class TijoriClient {
     }
 
     const resUrl = res.url || '';
-    if (resUrl.includes('/signin') || res.status === 401 || res.status === 403) {
+    if (isTijoriHost && (resUrl.includes('/signin') || res.status === 401 || res.status === 403)) {
       this._sessionMtime = 0;
       this._session = { cookieHeader: '', csrfToken: '' };
       const err = new Error('Tijori session has expired. Run "npm run auth" to log in again.');
@@ -383,9 +398,18 @@ export class TijoriClient {
     const companyIdMatch = html.match(/"company_id"\s*:\s*(\d+)/);
     const companyId = companyIdMatch ? parseInt(companyIdMatch[1], 10) : null;
 
+    let name = null;
+    let symbol = null;
     const metaMatch = html.match(/"company"\s*:\s*"([^"]+)"\s*,\s*"company_id"\s*:\s*\d+\s*,\s*"symbol"\s*:\s*"([^"]+)"/);
-    const name = metaMatch ? metaMatch[1] : null;
-    const symbol = metaMatch ? metaMatch[2] : null;
+    if (metaMatch) {
+      name = metaMatch[1];
+      symbol = metaMatch[2];
+    } else {
+      const nameMatch = html.match(/"company"\s*:\s*"([^"]+)"/);
+      const symbolMatch = html.match(/"symbol"\s*:\s*"([^"]+)"/);
+      name = nameMatch ? nameMatch[1] : null;
+      symbol = symbolMatch ? symbolMatch[1] : null;
+    }
 
     const final = { slug, company_id: companyId, name, symbol };
 
@@ -884,6 +908,7 @@ export class TijoriClient {
       if (text.startsWith('{"bs_s_s"') || (text.includes('"report_dates"') && text.includes('"data"'))) {
         try {
           embeddedData = JSON.parse(text);
+          return false;
         } catch (_) {}
       }
     });
@@ -974,8 +999,9 @@ export class TijoriClient {
     return result;
   }
 
-  async getShareholding(slug, { fresh = false } = {}) {
-    const cacheKey = `shareholding:${slug}`;
+  async getShareholding(slug, { detailed = false, fresh = false } = {}) {
+    const isDetailed = Boolean(detailed);
+    const cacheKey = isDetailed ? `shareholding_detailed:${slug}` : `shareholding:${slug}`;
 
     const fetched = await this._fetch(`/company/${slug}/shareholding/`, {
       cacheKey,
@@ -1017,34 +1043,96 @@ export class TijoriClient {
     trs.first().find('th, td').each((_, td) => headerCells.push($(td).text().trim()));
     const quarterPeriods = headerCells.slice(1).filter(Boolean);
 
-    const quarterMap = {};
-    quarterPeriods.forEach(p => { quarterMap[p] = { period: p }; });
+    if (!isDetailed) {
+      const quarterMap = {};
+      quarterPeriods.forEach(p => { quarterMap[p] = { period: p }; });
+
+      trs.slice(1).each((_, tr) => {
+        const cells = [];
+        $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim()));
+        if (cells.length < 2) return;
+        const category = cells[0];
+        if (!category) return;
+
+        cells.slice(1).forEach((val, idx) => {
+          const period = quarterPeriods[idx];
+          if (!period) return;
+          const cleaned = val.replace('%', '').trim();
+          if (cleaned === '—' || cleaned === '-' || cleaned === '' || cleaned === '–') {
+            quarterMap[period][category] = null;
+          } else {
+            const num = parseFloat(cleaned.replace(/,/g, ''));
+            quarterMap[period][category] = isNaN(num) ? val : num;
+          }
+        });
+      });
+
+      const quarters = Object.values(quarterMap).filter(q => Object.keys(q).length > 1);
+      const result = { quarters };
+
+      if (this.cacheEnabled) {
+        set(cacheKey, result, TTL.SHAREHOLDING || TTL.FINANCIALS, 'json', slug);
+      }
+
+      return result;
+    }
+
+    const summaryRows = [];
+    const institutions = [];
+    const nonInstitutions = [];
+    let currentSection = 'summary';
 
     trs.slice(1).each((_, tr) => {
       const cells = [];
-      $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim()));
+      $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim().replace(/\s+/g, ' ')));
       if (cells.length < 2) return;
-      const category = cells[0];
-      if (!category) return;
+      const name = cells[0];
+      if (!name) return;
 
+      const lowerName = name.toLowerCase();
+      if (lowerName === 'institutions') {
+        currentSection = 'institutions';
+      } else if (lowerName === 'non-institutions') {
+        currentSection = 'non_institutions';
+      }
+
+      const values = [];
       cells.slice(1).forEach((val, idx) => {
-        const period = quarterPeriods[idx];
-        if (!period) return;
+        if (idx >= quarterPeriods.length) return;
         const cleaned = val.replace('%', '').trim();
-        if (cleaned === '—' || cleaned === '-' || cleaned === '') {
-          quarterMap[period][category] = null;
+        if (cleaned === '—' || cleaned === '-' || cleaned === '' || cleaned === '–') {
+          values.push(null);
         } else {
           const num = parseFloat(cleaned.replace(/,/g, ''));
-          quarterMap[period][category] = isNaN(num) ? val : num;
+          values.push(isNaN(num) ? val : num);
         }
       });
+
+      const rowObj = {
+        name,
+        shares_pct: values,
+      };
+
+      if (currentSection === 'institutions' && lowerName !== 'institutions') {
+        institutions.push(rowObj);
+      } else if (currentSection === 'non_institutions' && lowerName !== 'non-institutions') {
+        nonInstitutions.push(rowObj);
+      } else {
+        summaryRows.push(rowObj);
+      }
     });
 
-    const quarters = Object.values(quarterMap).filter(q => Object.keys(q).length > 1);
-    const result = { quarters };
+    const result = {
+      slug,
+      detailed: true,
+      quarters: quarterPeriods,
+      summary: summaryRows,
+      institutions,
+      non_institutions: nonInstitutions,
+    };
 
     if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+      set(cacheKey, result, TTL.SHAREHOLDING || TTL.FINANCIALS, 'json', slug);
     }
 
     return result;
@@ -1328,27 +1416,33 @@ export class TijoriClient {
       return result;
     }
 
-    const metricData = await Promise.all(targetMetrics.map(async (metric) => {
-      try {
-        const opRes = await this._fetch(`/api/v1/ind/company_op_metrics/${companyId}/${metric.metric_id}/`);
-        const data = await opRes.response.json();
-        const series = Array.isArray(data?.data) ? data.data : [];
-        const latest = series.at(-1);
-        const history = series.map(([ts, val]) => ({
-          date: new Date(ts).toISOString().slice(0, 7),
-          value: val,
-        }));
-        return {
-          name: metric.name,
-          unit: metric.unit,
-          latest_value: latest?.[1] ?? null,
-          latest_date: latest ? new Date(latest[0]).toISOString().slice(0, 7) : null,
-          history,
-        };
-      } catch (e) {
-        return { name: metric.name, unit: metric.unit, latest_value: null, error: e.message };
-      }
-    }));
+    const metricData = [];
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < targetMetrics.length; i += BATCH_SIZE) {
+      const batch = targetMetrics.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(async (metric) => {
+        try {
+          const opRes = await this._fetch(`/api/v1/ind/company_op_metrics/${companyId}/${metric.metric_id}/`);
+          const data = await opRes.response.json();
+          const series = Array.isArray(data?.data) ? data.data : [];
+          const latest = series.at(-1);
+          const history = series.map(([ts, val]) => ({
+            date: new Date(ts).toISOString().slice(0, 7),
+            value: val,
+          }));
+          return {
+            name: metric.name,
+            unit: metric.unit,
+            latest_value: latest?.[1] ?? null,
+            latest_date: latest ? new Date(latest[0]).toISOString().slice(0, 7) : null,
+            history,
+          };
+        } catch (e) {
+          return { name: metric.name, unit: metric.unit, latest_value: null, error: e.message };
+        }
+      }));
+      metricData.push(...batchResults);
+    }
 
     const result = { slug, company_id: companyId, metrics: metricData };
 
@@ -1563,6 +1657,685 @@ export class TijoriClient {
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.PERMANENT, 'json');
+    }
+
+    return result;
+  }
+
+  async getFactorsAndBenchmarking(slug, { fresh = false } = {}) {
+    const cacheKey = `factors:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/factors/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    // Extract company name and ticker
+    let companyName = null;
+    let symbol = null;
+    try {
+      const tourEl = $('#benchmarking-tour-config');
+      if (tourEl.length) {
+        const tour = JSON.parse(tourEl.html());
+        companyName = tour.companyShort || null;
+        symbol = tour.companyTicker || null;
+      }
+    } catch (_) {}
+
+    if (!companyName) {
+      const title = $('title').text() || '';
+      const match = title.match(/^(.*?)\s+(?:benchmarking|factors)/i);
+      companyName = match ? match[1].trim() : slug;
+    }
+
+    // Extract radar data
+    let radarAxes = [];
+    try {
+      const radarEl = $('#factor-radar-data');
+      if (radarEl.length) {
+        const radarData = JSON.parse(radarEl.html());
+        const axes = radarData.axes || [];
+        const series = radarData.series || [];
+        const targetSeries = series[0];
+        const peerSeries = series.slice(1);
+
+        radarAxes = axes.map((axis, i) => {
+          const companyScore = targetSeries?.data?.[i] ?? 0;
+          const peerScores = peerSeries.map((s) => s.data?.[i]).filter((s) => typeof s === 'number');
+          const peerMedian = peerScores.length ? (computePercentiles(peerScores, [0.5]).p50 ?? 0) : 0;
+          return {
+            name: axis.name || axis.label || axis.key,
+            key: axis.key,
+            company_score: companyScore,
+            peer_median: peerMedian,
+            polarity: axis.polarity || null,
+          };
+        });
+      }
+    } catch (_) {}
+
+    // Extract formulas & qualitative notes
+    let formulas = [];
+    try {
+      const cellInfoEl = $('#factor-cell-info');
+      if (cellInfoEl.length) {
+        const cellInfo = JSON.parse(cellInfoEl.html());
+        if (Array.isArray(cellInfo.formulas)) {
+          formulas = cellInfo.formulas;
+        }
+      }
+    } catch (_) {}
+
+    const hasData = radarAxes.length > 0 || formulas.length > 0;
+    const result = {
+      slug,
+      company_name: companyName,
+      symbol,
+      radar_axes: radarAxes,
+      formulas,
+      ...(hasData ? {} : { note: 'No factor benchmarking data available for this company' }),
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FACTORS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getValuationBands(slug, { fresh = false } = {}) {
+    const cacheKey = `valuation_bands:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    try {
+      // 1. Fetch overview page first to resolve company_id and peers
+      const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+      if (overviewRes.stale) return overviewRes.stale;
+      const { $, html: overviewHtml } = overviewRes;
+
+      let companyId = null;
+      const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
+      if (companyIdMatch) {
+        companyId = parseInt(companyIdMatch[1], 10);
+      } else {
+        const ids = await this.resolveCompanyIds(slug, { fresh });
+        companyId = ids?.company_id ?? null;
+      }
+
+      // Extract peers from #peers_table_data
+      let peers = [];
+      try {
+        const scriptEl = $('#peers_table_data');
+        if (scriptEl.length) {
+          const raw = JSON.parse(scriptEl.html());
+          const data = raw?.[1]?.data || [];
+          peers = data.map((p) => ({
+            name: p.name || null,
+            slug: p.slug || null,
+            mcap: p['Market Capital'] ?? null,
+            pe: typeof p.PE === 'number' ? p.PE : null,
+            latest_price: p['Latest Price'] ?? null,
+          }));
+        }
+      } catch (_) {}
+
+      if (!companyId) {
+        const fallback = {
+          slug,
+          company_id: null,
+          current_pe: null,
+          valuation_bands: { '1y': null, '3y': null, '5y': null, '10y': null },
+          peers,
+          loss_making_days_excluded: 0,
+          note: 'Unable to resolve numeric company_id for valuation bands',
+        };
+        if (this.cacheEnabled) {
+          set(cacheKey, fallback, TTL.VALUATION, 'json', slug);
+        }
+        return fallback;
+      }
+
+      // 2. Fetch daily historical P/E series
+      const chartFetched = await this._fetch(`/api/v1/ind/chartdata/${companyId}/pe/`, { fresh });
+      const chartJson = await chartFetched.response.json();
+      let rawPoints = [];
+      if (chartJson?.data) {
+        rawPoints = typeof chartJson.data === 'string' ? JSON.parse(chartJson.data) : chartJson.data;
+      }
+
+      let lossDaysCount = 0;
+      const validPoints = [];
+      for (const point of rawPoints) {
+        if (Array.isArray(point) && point.length >= 2) {
+          const [ts, pe] = point;
+          if (typeof pe === 'number') {
+            if (pe <= 0) {
+              lossDaysCount++;
+            } else {
+              validPoints.push([ts, pe]);
+            }
+          }
+        }
+      }
+
+      validPoints.sort((a, b) => a[0] - b[0]);
+      const currentPe = validPoints.length > 0 ? validPoints[validPoints.length - 1][1] : null;
+
+      const valuationBands = { '1y': null, '3y': null, '5y': null, '10y': null };
+      if (validPoints.length > 0) {
+        const maxTs = validPoints[validPoints.length - 1][0];
+        const minTs = validPoints[0][0];
+        const totalSpanDays = (maxTs - minTs) / 86400000;
+
+        const timeframeDefs = [
+          { key: '1y', days: 365 },
+          { key: '3y', days: 3 * 365 },
+          { key: '5y', days: 5 * 365 },
+          { key: '10y', days: 10 * 365 },
+        ];
+
+        for (const tf of timeframeDefs) {
+          if (totalSpanDays >= tf.days * 0.8) {
+            const cutoffTs = maxTs - tf.days * 86400000;
+            const windowPoints = validPoints.filter(([ts]) => ts >= cutoffTs);
+            const peValues = windowPoints.map(([, pe]) => pe);
+            const stats = computePercentiles(peValues, [0.25, 0.5, 0.75]);
+            valuationBands[tf.key] = {
+              min: stats.min,
+              p25: stats.p25,
+              median: stats.p50,
+              p75: stats.p75,
+              max: stats.max,
+              sample_count: stats.count,
+            };
+          }
+        }
+      }
+
+      const result = {
+        slug,
+        company_id: companyId,
+        current_pe: currentPe,
+        valuation_bands: valuationBands,
+        peers,
+        loss_making_days_excluded: lossDaysCount,
+      };
+
+      if (this.cacheEnabled) {
+        set(cacheKey, result, TTL.VALUATION, 'json', slug);
+      }
+
+      return result;
+    } catch (err) {
+      if (this.cacheEnabled) {
+        const stale = get(cacheKey, { allowStale: true });
+        if (stale) {
+          return {
+            ...stale,
+            _cache_meta: { ...(stale._cache_meta || {}), is_stale: true },
+          };
+        }
+      }
+      throw err;
+    }
+  }
+
+  async getScenarioProjections(slug, { fresh = false } = {}) {
+    const cacheKey = `scenarios:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/shareholding/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    const tables = $('.peg-sample__table');
+    if (!tables.length) {
+      const fallback = {
+        slug,
+        has_projections: false,
+        scenarios: [],
+        forecasts: null,
+        note: 'No scenario projections available for this company',
+      };
+      if (this.cacheEnabled) {
+        set(cacheKey, fallback, TTL.SCENARIOS, 'json', slug);
+      }
+      return fallback;
+    }
+
+    // 1. Table 0: Base / Bear / Bull scenarios
+    const scenarios = [];
+    const table0 = $(tables[0]);
+    table0.find('tr').each((i, tr) => {
+      if (i === 0) return;
+      const cols = $(tr).find('td').map((_, td) => $(td).text().trim().replace(/\s+/g, ' ')).get();
+      if (cols.length >= 3) {
+        scenarios.push({
+          scenario: cols[0],
+          probability: cols[1],
+          key_drivers: cols[2],
+        });
+      }
+    });
+
+    // 2. Table 1: Forward forecasts
+    let forecasts = null;
+    if (tables.length >= 2) {
+      const table1 = $(tables[1]);
+      const headerCols = table1.find('tr').first().find('th, td').map((_, el) => $(el).text().trim().replace(/\s+/g, ' ')).get();
+      const years = [];
+      let hasCagr = false;
+      for (let c = 1; c < headerCols.length; c++) {
+        const colName = headerCols[c];
+        if (colName.toUpperCase() === 'CAGR') {
+          hasCagr = true;
+        } else if (colName) {
+          years.push(colName);
+        }
+      }
+
+      const metrics = [];
+      let currentSection = null;
+
+      table1.find('tr').slice(1).each((_, tr) => {
+        const cells = $(tr).find('td, th').map((_, el) => $(el).text().trim().replace(/\s+/g, ' ')).get();
+        if (cells.length === 0) return;
+
+        if (cells.length === 1) {
+          currentSection = cells[0];
+          return;
+        }
+
+        const rawName = cells[0];
+        const metricName = currentSection && rawName.startsWith('-') ? `${currentSection} ${rawName}` : (currentSection ? `${currentSection} - ${rawName}` : rawName);
+
+        const values = [];
+        for (let y = 0; y < years.length; y++) {
+          const valStr = cells[y + 1];
+          if (!valStr || valStr === '–' || valStr === '-' || valStr === '—') {
+            values.push(null);
+          } else {
+            const clean = valStr.replace(/,/g, '');
+            const num = parseFloat(clean);
+            values.push(Number.isNaN(num) ? valStr : num);
+          }
+        }
+
+        const cagrColIdx = hasCagr ? years.length + 1 : -1;
+        const cagr = cagrColIdx > 0 && cagrColIdx < cells.length ? cells[cagrColIdx] : null;
+
+        metrics.push({
+          name: metricName,
+          values,
+          cagr: cagr || null,
+        });
+      });
+
+      forecasts = {
+        years,
+        metrics,
+      };
+    }
+
+    const result = {
+      slug,
+      has_projections: scenarios.length > 0 || forecasts !== null,
+      scenarios,
+      forecasts,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.SCENARIOS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async _fetchCompanyOverviewHtml(slug, { fresh = false, cacheKey = null } = {}) {
+    const htmlCacheKey = `html:overview:${slug}`;
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(htmlCacheKey, { allowStale: false });
+      if (cached?.value) {
+        return { $: cheerio.load(cached.value), html: cached.value };
+      }
+    }
+
+    try {
+      const fetched = await this._fetch(`/company/${slug}/`, { fresh });
+      const html = await fetched.response.text();
+      if (this.cacheEnabled) {
+        set(htmlCacheKey, html, TTL.OVERVIEW, 'html', slug);
+      }
+      const $ = cheerio.load(html);
+      return { $, html };
+    } catch (err) {
+      if (this.cacheEnabled && cacheKey) {
+        const stale = get(cacheKey, { allowStale: true });
+        if (stale) {
+          return {
+            stale: {
+              ...stale,
+              _cache_meta: { ...(stale._cache_meta || {}), is_stale: true },
+            },
+          };
+        }
+      }
+      throw err;
+    }
+  }
+
+  async getCompanyTimeline(slug, { fresh = false } = {}) {
+    const cacheKey = `timeline:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+    if (overviewRes.stale) return overviewRes.stale;
+    const { $, html } = overviewRes;
+
+    let keyEvents = [];
+    let whatToWatch = {
+      analyst_summary: '',
+      items: [],
+      peg_summary: null,
+    };
+
+    const scriptEl = $('#company_details_data');
+    try {
+      if (scriptEl.length) {
+        const data = JSON.parse(scriptEl.html());
+        if (data.memory_overview?.key_events && Array.isArray(data.memory_overview.key_events)) {
+          keyEvents = data.memory_overview.key_events.map((ev) => ({
+            date: ev.chart_date || ev.date || null,
+            label: ev.label || '',
+          }));
+        }
+        const theRead = Array.isArray(data.memory_overview?.the_read)
+          ? data.memory_overview.the_read.join(' ')
+          : '';
+        whatToWatch = {
+          analyst_summary: theRead || data.peg_summary || '',
+          items: data.memory_overview?.what_to_watch || [],
+          peg_summary: data.peg_summary || null,
+        };
+      }
+    } catch (_) {}
+
+    if (!scriptEl.length) {
+      $('script').each((_, el) => {
+        const text = $(el).html() || '';
+        if (text.includes('key_events')) {
+          try {
+            const parsed = JSON.parse(text);
+            const events = parsed.key_events || parsed.memory_overview?.key_events;
+            if (Array.isArray(events)) {
+              keyEvents = events.map((ev) => ({
+                date: ev.chart_date || ev.date || null,
+                label: ev.label || '',
+              }));
+            }
+          } catch (_) {}
+        }
+      });
+    }
+
+    // Deterministically sort key events chronologically
+    keyEvents.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    const result = {
+      slug,
+      key_events: keyEvents,
+      what_to_watch: whatToWatch,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.TIMELINE, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getStockNews(query, { limit = 10, days = 90, fresh = false } = {}) {
+    const trimmed = String(query).trim();
+    const numLimit = Number(limit) || 10;
+    const numDays = Number(days) || 90;
+    const cacheKey = `news:${trimmed}:${numDays}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) {
+        return {
+          ...cached,
+          news: (cached.news || []).slice(0, numLimit),
+        };
+      }
+    }
+
+    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(trimmed)}+when:${numDays}d&hl=en-IN&gl=IN&ceid=IN:en`;
+    let items = [];
+    let fetchError = null;
+
+    try {
+      const fetched = await this._fetch(rssUrl, { fresh });
+      const xml = await fetched.response.text();
+      const $ = cheerio.load(xml, { xmlMode: true });
+
+      $('item').each((_, el) => {
+        const rawTitle = $(el).find('title').text().trim();
+        const link = $(el).find('link').text().trim();
+        const pubDate = $(el).find('pubDate').text().trim();
+        const source = $(el).find('source').text().trim();
+
+        let title = rawTitle;
+        if (source && title.endsWith(` - ${source}`)) {
+          title = title.slice(0, -(source.length + 3)).trim();
+        }
+
+        let isoDate = null;
+        if (pubDate) {
+          try {
+            isoDate = new Date(pubDate).toISOString();
+          } catch (_) {
+            isoDate = pubDate;
+          }
+        }
+
+        if (title && link) {
+          items.push({
+            title,
+            source: source || 'Unknown',
+            url: link,
+            published_at: isoDate || pubDate,
+          });
+        }
+      });
+    } catch (err) {
+      fetchError = err;
+    }
+
+    if (fetchError) {
+      if (this.cacheEnabled) {
+        const stale = get(cacheKey, { allowStale: true });
+        if (stale) {
+          return {
+            ...stale,
+            _cache_meta: { ...(stale._cache_meta || {}), is_stale: true },
+            news: (stale.news || []).slice(0, numLimit),
+          };
+        }
+      }
+    }
+
+    const totalFound = items.length;
+    const fullResult = {
+      query: trimmed,
+      days: numDays,
+      total_found: totalFound,
+      news: items,
+      ...(totalFound === 0 ? { note: 'No news found or RSS feed temporarily unavailable' } : {}),
+    };
+
+    if (this.cacheEnabled && !fetchError) {
+      set(cacheKey, fullResult, TTL.NEWS, 'json');
+    }
+
+    return {
+      ...fullResult,
+      news: items.slice(0, numLimit),
+    };
+  }
+
+  async getCorporateActions(slug, { fresh = false } = {}) {
+    const cacheKey = `corporate_actions:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+    if (overviewRes.stale) return overviewRes.stale;
+    const { $, html } = overviewRes;
+
+    let dividends = [];
+    let splits = [];
+    let bonuses = [];
+    let rights = [];
+
+    const scriptEl = $('#corporate_actions');
+    if (scriptEl.length) {
+      try {
+        const parsed = JSON.parse(scriptEl.html());
+        if (Array.isArray(parsed.Dividend)) dividends = parsed.Dividend;
+        if (Array.isArray(parsed.Split)) splits = parsed.Split;
+        if (Array.isArray(parsed.Bonus)) bonuses = parsed.Bonus;
+        if (Array.isArray(parsed.Rights)) rights = parsed.Rights;
+      } catch (_) {}
+    }
+
+    if (!scriptEl.length) {
+      $('script').each((_, el) => {
+        const text = $(el).html() || '';
+        if (text.includes('Dividend') && (text.includes('Bonus') || text.includes('Split'))) {
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed.Dividend)) dividends = parsed.Dividend;
+            if (Array.isArray(parsed.Split)) splits = parsed.Split;
+            if (Array.isArray(parsed.Bonus)) bonuses = parsed.Bonus;
+            if (Array.isArray(parsed.Rights)) rights = parsed.Rights;
+          } catch (_) {}
+        }
+      });
+    }
+
+    const result = {
+      slug,
+      dividends,
+      splits,
+      bonuses,
+      rights,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.ACTIONS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getSupplyChain(slug, { fresh = false } = {}) {
+    const cacheKey = `supply_chain:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+    if (overviewRes.stale) return overviewRes.stale;
+    const { $, html } = overviewRes;
+
+    let operationalSupplierNotes = [];
+    let operationalCustomerNotes = [];
+    // shortcut: relational products graph requires dedicated entity mapping endpoint, deferred to FEAT-024
+    let relationalProducts = [];
+    let industriesCatered = [];
+
+    const scriptEl = $('#company_details_data');
+    try {
+      if (scriptEl.length) {
+        const data = JSON.parse(scriptEl.html());
+        if (data.sector) industriesCatered.push(data.sector);
+
+        const sentences = [];
+        if (Array.isArray(data.memory_overview?.the_read)) {
+          sentences.push(...data.memory_overview.the_read);
+        }
+        if (Array.isArray(data.memory_overview?.what_to_watch)) {
+          for (const item of data.memory_overview.what_to_watch) {
+            if (item.body) sentences.push(item.body);
+          }
+        }
+
+        for (const s of sentences) {
+          const lower = s.toLowerCase();
+          if (
+            lower.includes('supplier') ||
+            lower.includes('input') ||
+            lower.includes('raw material') ||
+            lower.includes('capacity') ||
+            lower.includes('accrual') ||
+            lower.includes('spending') ||
+            lower.includes('procurement')
+          ) {
+            operationalSupplierNotes.push(s);
+          }
+          if (
+            lower.includes('customer') ||
+            lower.includes('client') ||
+            lower.includes('buyer') ||
+            lower.includes('sells') ||
+            lower.includes('promoter') ||
+            lower.includes('receivable') ||
+            lower.includes('market share')
+          ) {
+            operationalCustomerNotes.push(s);
+          }
+        }
+      }
+    } catch (_) {}
+
+    const result = {
+      slug,
+      operational_supplier_notes: operationalSupplierNotes,
+      operational_customer_notes: operationalCustomerNotes,
+      relational_products: relationalProducts,
+      industries_catered: industriesCatered,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.SUPPLY_CHAIN, 'json', slug);
     }
 
     return result;

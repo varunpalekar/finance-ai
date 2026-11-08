@@ -14,7 +14,7 @@ try {
   isOnline = probe.ok;
 } catch (_) {}
 
-test('live integration test suite covering all 20 MCP functions with real data verification', { skip: !isOnline && 'Network unreachable or sandboxed — run npm run test:live unsandboxed' }, async (t) => {
+test('live integration test suite covering all 28 MCP functions with real data verification', { skip: !isOnline && 'Network unreachable or sandboxed — run npm run test:live unsandboxed' }, async (t) => {
   // Use cacheEnabled: false to guarantee every test queries real live network endpoints directly
   const client = new TijoriClient({ sessionPath, cacheEnabled: false });
 
@@ -246,5 +246,88 @@ test('live integration test suite covering all 20 MCP functions with real data v
     assert.ok(get('test_clear:tata-steel-limited'), 'Record must exist before clear');
     client.clearCache('tata-steel-limited');
     assert.equal(get('test_clear:tata-steel-limited'), null, 'Record must be deleted after clearCache');
+  });
+
+  // 21. get_factors_and_benchmarking
+  await t.test('21. get_factors_and_benchmarking: extracts authentic radar axes and formulas for bank-of-maharashtra', async () => {
+    const res = await client.getFactorsAndBenchmarking('bank-of-maharashtra');
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.ok(Array.isArray(res.radar_axes) && res.radar_axes.length >= 2);
+    assert.equal(typeof res.radar_axes[0].company_score, 'number');
+    assert.equal(typeof res.radar_axes[0].peer_median, 'number');
+  });
+
+  // 22. get_valuation_bands
+  await t.test('22. get_valuation_bands: aggregates authentic daily historical P/E for swaraj-engines-limited', async () => {
+    const res = await client.getValuationBands('swaraj-engines-limited');
+    assert.ok(res);
+    assert.equal(res.slug, 'swaraj-engines-limited');
+    assert.equal(typeof res.current_pe, 'number');
+    assert.ok(res.valuation_bands['1y']);
+    assert.ok(res.valuation_bands['3y']);
+    assert.ok(res.valuation_bands['5y']);
+    assert.ok(res.valuation_bands['10y']);
+    const b1y = res.valuation_bands['1y'];
+    assert.ok(b1y.min <= b1y.p25 && b1y.p25 <= b1y.median && b1y.median <= b1y.p75 && b1y.p75 <= b1y.max);
+    assert.ok(Array.isArray(res.peers) && res.peers.length >= 1);
+  });
+
+  // 23. get_scenario_projections
+  await t.test('23. get_scenario_projections: extracts authentic Base/Bear/Bull odds and forward model for bank-of-maharashtra', async () => {
+    const res = await client.getScenarioProjections('bank-of-maharashtra');
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.equal(res.has_projections, true);
+    assert.equal(res.scenarios.length, 3);
+    assert.ok(res.scenarios[0].probability.includes('%'));
+    assert.ok(res.forecasts.years.length >= 4);
+  });
+
+  // 24. get_company_timeline
+  await t.test('24. get_company_timeline: extracts verified key_events and guidance for bank-of-maharashtra', async () => {
+    const res = await client.getCompanyTimeline('bank-of-maharashtra');
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.ok(Array.isArray(res.key_events));
+    assert.ok(res.what_to_watch.analyst_summary.length > 20);
+  });
+
+  // 25. get_stock_news
+  await t.test('25. get_stock_news: queries live Google News RSS for NSE:MAHABANK', async () => {
+    const res = await client.getStockNews('NSE:MAHABANK', { limit: 5, days: 90 });
+    assert.ok(res);
+    assert.ok(res.total_found >= 1);
+    assert.ok(res.news.length >= 1);
+    assert.ok(res.news[0].title);
+    assert.ok(res.news[0].url.startsWith('http'));
+  });
+
+  // 26. get_corporate_actions
+  await t.test('26. get_corporate_actions: retrieves authentic dividends and splits for swaraj-engines-limited', async () => {
+    const res = await client.getCorporateActions('swaraj-engines-limited');
+    assert.ok(res);
+    assert.equal(res.slug, 'swaraj-engines-limited');
+    assert.ok(Array.isArray(res.dividends) && res.dividends.length >= 5);
+    assert.ok(res.dividends[0].ex_date);
+  });
+
+  // 27. get_supply_chain
+  await t.test('27. get_supply_chain: extracts supplier and customer notes for swaraj-engines-limited', async () => {
+    const res = await client.getSupplyChain('swaraj-engines-limited');
+    assert.ok(res);
+    assert.equal(res.slug, 'swaraj-engines-limited');
+    assert.ok(Array.isArray(res.operational_supplier_notes));
+    assert.ok(Array.isArray(res.operational_customer_notes));
+  });
+
+  // 28. get_shareholding detailed
+  await t.test('28. get_shareholding detailed: extracts line-item mutual funds and LIC for bank-of-maharashtra', async () => {
+    const res = await client.getShareholding('bank-of-maharashtra', { detailed: true });
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.equal(res.detailed, true);
+    assert.ok(Array.isArray(res.institutions) && res.institutions.length >= 2);
+    assert.ok(res.institutions.some(i => i.name.includes('LIFE INSURANCE')));
   });
 });

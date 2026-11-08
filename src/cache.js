@@ -9,6 +9,14 @@ export const TTL = {
   OVERVIEW: 2 * 60 * 60 * 1000,      // 2h
   METRICS: 30 * 24 * 60 * 60 * 1000, // 30d
   FINANCIALS: 30 * 24 * 60 * 60 * 1000, // 30d
+  FACTORS: 7 * 86400 * 1000,          // 7d
+  VALUATION: 12 * 3600 * 1000,        // 12h
+  SCENARIOS: 7 * 86400 * 1000,        // 7d
+  TIMELINE: 24 * 3600 * 1000,         // 24h
+  NEWS: 3600 * 1000,                  // 1h
+  ACTIONS: 7 * 86400 * 1000,          // 7d
+  SUPPLY_CHAIN: 7 * 86400 * 1000,     // 7d
+  SHAREHOLDING: 6 * 3600 * 1000,      // 6h
   PERMANENT: null,
 };
 
@@ -32,6 +40,10 @@ export function initDb(dbPath) {
 
   db = new DatabaseSync(targetPath);
   currentDbPath = targetPath;
+
+  try {
+    db.exec('PRAGMA busy_timeout = 5000;');
+  } catch (_) {}
 
   if (targetPath !== ':memory:') {
     try {
@@ -107,7 +119,12 @@ export function set(key, value, ttlMs, contentType = 'json', slug = null) {
   const now = Date.now();
   const fetchedAt = new Date(now).toISOString();
   const expiresAt = ttlMs === null || ttlMs === undefined ? null : now + ttlMs;
-  const valStr = contentType === 'json' ? JSON.stringify(value) : String(value);
+  let cleanValue = value;
+  if (value && typeof value === 'object' && '_cache_meta' in value) {
+    const { _cache_meta, ...rest } = value;
+    cleanValue = rest;
+  }
+  const valStr = contentType === 'json' ? JSON.stringify(cleanValue) : String(cleanValue);
 
   const stmt = database.prepare(`
     INSERT INTO http_cache (key, slug, value, content_type, fetched_at, expires_at, created_at)

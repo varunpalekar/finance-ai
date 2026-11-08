@@ -52,3 +52,16 @@ test('selective clear removes only targeted stock via indexed slug without wildc
   assert.equal(get('overview:tata-steel-limited'), null);
   assert.ok(get('overview:reliance-industries-limited'), 'Reliance must remain intact');
 });
+
+test('set strips existing _cache_meta to prevent nested metadata upon re-saving', () => {
+  const original = {
+    slug: 'nested-test',
+    data: 123,
+    _cache_meta: { is_cached: true, is_stale: true, nested: true },
+  };
+  set('test:strip-meta', original, 60000, 'json');
+  const loaded = get('test:strip-meta');
+  assert.equal(loaded.slug, 'nested-test');
+  assert.equal(loaded.data, 123);
+  assert.equal(loaded._cache_meta.nested, undefined, '_cache_meta should be cleanly replaced, not nested');
+});

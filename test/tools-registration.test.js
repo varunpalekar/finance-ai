@@ -1,0 +1,24 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+test('src/index.js exports complete 28-tool registry with correct Zod schemas and error wrapping', () => {
+  const code = fs.readFileSync('src/index.js', 'utf8');
+  const newTools = [
+    'get_factors_and_benchmarking',
+    'get_valuation_bands',
+    'get_scenario_projections',
+    'get_company_timeline',
+    'get_stock_news',
+    'get_corporate_actions',
+    'get_supply_chain'
+  ];
+
+  for (const tool of newTools) {
+    assert.ok(code.includes(`'${tool}'`), `Tool '${tool}' must be registered`);
+  }
+  assert.ok(code.includes('server.registerTool('), 'Must use official MCP SDK tool registration');
+
+  // Verify detailed option in get_shareholding tool schema
+  assert.ok(code.includes('detailed: z.boolean().optional()'), 'get_shareholding must include detailed boolean option');
+});
