@@ -20,6 +20,7 @@ Status tracking for prerequisites, local execution environments, test suites, an
 
 | Test Target | Execution Command | Status | Coverage / Focus |
 | :--- | :--- | :--- | :--- |
-| **Hermetic Unit & Mock Suite** | `npm test` | Verified | 25 offline tests (SQLite WAL cache, SWR 5xx fallback, dynamic session reload, Cheerio scrapers, REST methods, MCP delegation) |
-| **Live Integration Suite** | `npm run test:live` | Verified | 21 live tests pass in 3.5s across all 20 MCP tools with real data assertions (`tata-steel-limited`, `swaraj-engines-limited`) |
+| **Hermetic Unit & Mock Suite** | `npm test` | Verified | 48 offline tests pass in ~1.2s (SQLite WAL cache, SWR 5xx fallback, dynamic session reload, Cheerio scrapers, statistical percentiles, domain TTLs, mock fetch delegates, and authentic browser fixtures) |
+| **Live Integration Suite** | `npm run test:live` | Verified | 28 live tests pass in 8.8s across all 28 MCP tools with real data assertions on `tata-steel-limited`, `swaraj-engines-limited`, `bank-of-maharashtra`, and Google News RSS |
 | **Auth & Cookie Capture** | `npm run auth` | Verified | Launches headed Playwright to capture login session with mode 0600 |
+| **Live Fixture Capture** | `stock-research_agent-browser` MCP server | Verified | Authentic browser session DOM snapshots captured for factors, valuation P/E series, probabilistic scenarios, shareholding line-items, and Google News RSS |

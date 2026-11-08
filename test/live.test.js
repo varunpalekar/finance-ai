@@ -14,7 +14,7 @@ try {
   isOnline = probe.ok;
 } catch (_) {}
 
-test('live integration test suite covering all 20 MCP functions with real data verification', { skip: !isOnline && 'Network unreachable or sandboxed — run npm run test:live unsandboxed' }, async (t) => {
+test('live integration test suite covering all 28 MCP functions with real data verification', { skip: !isOnline && 'Network unreachable or sandboxed — run npm run test:live unsandboxed' }, async (t) => {
   // Use cacheEnabled: false to guarantee every test queries real live network endpoints directly
   const client = new TijoriClient({ sessionPath, cacheEnabled: false });
 
