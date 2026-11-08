@@ -975,8 +975,9 @@ export class TijoriClient {
     return result;
   }
 
-  async getShareholding(slug, { fresh = false } = {}) {
-    const cacheKey = `shareholding:${slug}`;
+  async getShareholding(slug, { detailed = false, fresh = false } = {}) {
+    const isDetailed = Boolean(detailed);
+    const cacheKey = isDetailed ? `shareholding_detailed:${slug}` : `shareholding:${slug}`;
 
     const fetched = await this._fetch(`/company/${slug}/shareholding/`, {
       cacheKey,
@@ -1018,34 +1019,96 @@ export class TijoriClient {
     trs.first().find('th, td').each((_, td) => headerCells.push($(td).text().trim()));
     const quarterPeriods = headerCells.slice(1).filter(Boolean);
 
-    const quarterMap = {};
-    quarterPeriods.forEach(p => { quarterMap[p] = { period: p }; });
+    if (!isDetailed) {
+      const quarterMap = {};
+      quarterPeriods.forEach(p => { quarterMap[p] = { period: p }; });
+
+      trs.slice(1).each((_, tr) => {
+        const cells = [];
+        $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim()));
+        if (cells.length < 2) return;
+        const category = cells[0];
+        if (!category) return;
+
+        cells.slice(1).forEach((val, idx) => {
+          const period = quarterPeriods[idx];
+          if (!period) return;
+          const cleaned = val.replace('%', '').trim();
+          if (cleaned === '—' || cleaned === '-' || cleaned === '' || cleaned === '–') {
+            quarterMap[period][category] = null;
+          } else {
+            const num = parseFloat(cleaned.replace(/,/g, ''));
+            quarterMap[period][category] = isNaN(num) ? val : num;
+          }
+        });
+      });
+
+      const quarters = Object.values(quarterMap).filter(q => Object.keys(q).length > 1);
+      const result = { quarters };
+
+      if (this.cacheEnabled) {
+        set(cacheKey, result, TTL.SHAREHOLDING || TTL.FINANCIALS, 'json', slug);
+      }
+
+      return result;
+    }
+
+    const summaryRows = [];
+    const institutions = [];
+    const nonInstitutions = [];
+    let currentSection = 'summary';
 
     trs.slice(1).each((_, tr) => {
       const cells = [];
-      $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim()));
+      $(tr).find('td, th').each((_, td) => cells.push($(td).text().trim().replace(/\s+/g, ' ')));
       if (cells.length < 2) return;
-      const category = cells[0];
-      if (!category) return;
+      const name = cells[0];
+      if (!name) return;
 
+      const lowerName = name.toLowerCase();
+      if (lowerName === 'institutions') {
+        currentSection = 'institutions';
+      } else if (lowerName === 'non-institutions') {
+        currentSection = 'non_institutions';
+      }
+
+      const values = [];
       cells.slice(1).forEach((val, idx) => {
-        const period = quarterPeriods[idx];
-        if (!period) return;
+        if (idx >= quarterPeriods.length) return;
         const cleaned = val.replace('%', '').trim();
-        if (cleaned === '—' || cleaned === '-' || cleaned === '') {
-          quarterMap[period][category] = null;
+        if (cleaned === '—' || cleaned === '-' || cleaned === '' || cleaned === '–') {
+          values.push(null);
         } else {
           const num = parseFloat(cleaned.replace(/,/g, ''));
-          quarterMap[period][category] = isNaN(num) ? val : num;
+          values.push(isNaN(num) ? val : num);
         }
       });
+
+      const rowObj = {
+        name,
+        shares_pct: values,
+      };
+
+      if (currentSection === 'institutions' && lowerName !== 'institutions') {
+        institutions.push(rowObj);
+      } else if (currentSection === 'non_institutions' && lowerName !== 'non-institutions') {
+        nonInstitutions.push(rowObj);
+      } else {
+        summaryRows.push(rowObj);
+      }
     });
 
-    const quarters = Object.values(quarterMap).filter(q => Object.keys(q).length > 1);
-    const result = { quarters };
+    const result = {
+      slug,
+      detailed: true,
+      quarters: quarterPeriods,
+      summary: summaryRows,
+      institutions,
+      non_institutions: nonInstitutions,
+    };
 
     if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
+      set(cacheKey, result, TTL.SHAREHOLDING || TTL.FINANCIALS, 'json', slug);
     }
 
     return result;

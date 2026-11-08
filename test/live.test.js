@@ -320,4 +320,14 @@ test('live integration test suite covering all 20 MCP functions with real data v
     assert.ok(Array.isArray(res.operational_supplier_notes));
     assert.ok(Array.isArray(res.operational_customer_notes));
   });
+
+  // 28. get_shareholding detailed
+  await t.test('28. get_shareholding detailed: extracts line-item mutual funds and LIC for bank-of-maharashtra', async () => {
+    const res = await client.getShareholding('bank-of-maharashtra', { detailed: true });
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.equal(res.detailed, true);
+    assert.ok(Array.isArray(res.institutions) && res.institutions.length >= 2);
+    assert.ok(res.institutions.some(i => i.name.includes('LIFE INSURANCE')));
+  });
 });
