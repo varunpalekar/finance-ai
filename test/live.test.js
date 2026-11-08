@@ -272,4 +272,15 @@ test('live integration test suite covering all 20 MCP functions with real data v
     assert.ok(b1y.min <= b1y.p25 && b1y.p25 <= b1y.median && b1y.median <= b1y.p75 && b1y.p75 <= b1y.max);
     assert.ok(Array.isArray(res.peers) && res.peers.length >= 1);
   });
+
+  // 23. get_scenario_projections
+  await t.test('23. get_scenario_projections: extracts authentic Base/Bear/Bull odds and forward model for bank-of-maharashtra', async () => {
+    const res = await client.getScenarioProjections('bank-of-maharashtra');
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.equal(res.has_projections, true);
+    assert.equal(res.scenarios.length, 3);
+    assert.ok(res.scenarios[0].probability.includes('%'));
+    assert.ok(res.forecasts.years.length >= 4);
+  });
 });

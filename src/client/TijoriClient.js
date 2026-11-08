@@ -1784,4 +1784,122 @@ export class TijoriClient {
 
     return result;
   }
+
+  async getScenarioProjections(slug, { fresh = false } = {}) {
+    const cacheKey = `scenarios:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/shareholding/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    const tables = $('.peg-sample__table');
+    if (!tables.length) {
+      const fallback = {
+        slug,
+        has_projections: false,
+        scenarios: [],
+        forecasts: null,
+        note: 'No scenario projections available for this company',
+      };
+      if (this.cacheEnabled) {
+        set(cacheKey, fallback, TTL.SCENARIOS, 'json', slug);
+      }
+      return fallback;
+    }
+
+    // 1. Table 0: Base / Bear / Bull scenarios
+    const scenarios = [];
+    const table0 = $(tables[0]);
+    table0.find('tr').each((i, tr) => {
+      if (i === 0) return;
+      const cols = $(tr).find('td').map((_, td) => $(td).text().trim().replace(/\s+/g, ' ')).get();
+      if (cols.length >= 3) {
+        scenarios.push({
+          scenario: cols[0],
+          probability: cols[1],
+          key_drivers: cols[2],
+        });
+      }
+    });
+
+    // 2. Table 1: Forward forecasts
+    let forecasts = null;
+    if (tables.length >= 2) {
+      const table1 = $(tables[1]);
+      const headerCols = table1.find('tr').first().find('th, td').map((_, el) => $(el).text().trim().replace(/\s+/g, ' ')).get();
+      const years = [];
+      let hasCagr = false;
+      for (let c = 1; c < headerCols.length; c++) {
+        const colName = headerCols[c];
+        if (colName.toUpperCase() === 'CAGR') {
+          hasCagr = true;
+        } else if (colName) {
+          years.push(colName);
+        }
+      }
+
+      const metrics = [];
+      let currentSection = null;
+
+      table1.find('tr').slice(1).each((_, tr) => {
+        const cells = $(tr).find('td, th').map((_, el) => $(el).text().trim().replace(/\s+/g, ' ')).get();
+        if (cells.length === 0) return;
+
+        if (cells.length === 1) {
+          currentSection = cells[0];
+          return;
+        }
+
+        const rawName = cells[0];
+        const metricName = currentSection && rawName.startsWith('-') ? `${currentSection} ${rawName}` : (currentSection ? `${currentSection} - ${rawName}` : rawName);
+
+        const values = [];
+        for (let y = 0; y < years.length; y++) {
+          const valStr = cells[y + 1];
+          if (!valStr || valStr === '–' || valStr === '-' || valStr === '—') {
+            values.push(null);
+          } else {
+            const clean = valStr.replace(/,/g, '');
+            const num = parseFloat(clean);
+            values.push(Number.isNaN(num) ? valStr : num);
+          }
+        }
+
+        const cagrColIdx = hasCagr ? years.length + 1 : -1;
+        const cagr = cagrColIdx > 0 && cagrColIdx < cells.length ? cells[cagrColIdx] : null;
+
+        metrics.push({
+          name: metricName,
+          values,
+          cagr: cagr || null,
+        });
+      });
+
+      forecasts = {
+        years,
+        metrics,
+      };
+    }
+
+    const result = {
+      slug,
+      has_projections: scenarios.length > 0 || forecasts !== null,
+      scenarios,
+      forecasts,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.SCENARIOS, 'json', slug);
+    }
+
+    return result;
+  }
 }
