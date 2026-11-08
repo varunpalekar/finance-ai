@@ -1902,4 +1902,154 @@ export class TijoriClient {
 
     return result;
   }
+
+  async _fetchCompanyOverviewHtml(slug, { fresh = false } = {}) {
+    const fetched = await this._fetch(`/company/${slug}/`, { fresh });
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+    return { $, html };
+  }
+
+  async getCompanyTimeline(slug, { fresh = false } = {}) {
+    const cacheKey = `timeline:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const { $, html } = await this._fetchCompanyOverviewHtml(slug, { fresh });
+
+    let keyEvents = [];
+    let whatToWatch = {
+      analyst_summary: '',
+      items: [],
+      peg_summary: null,
+    };
+
+    try {
+      const scriptEl = $('#company_details_data');
+      if (scriptEl.length) {
+        const data = JSON.parse(scriptEl.html());
+        if (data.memory_overview?.key_events && Array.isArray(data.memory_overview.key_events)) {
+          keyEvents = data.memory_overview.key_events.map((ev) => ({
+            date: ev.chart_date || ev.date || null,
+            label: ev.label || '',
+          }));
+        }
+        const theRead = Array.isArray(data.memory_overview?.the_read)
+          ? data.memory_overview.the_read.join(' ')
+          : '';
+        whatToWatch = {
+          analyst_summary: theRead || data.peg_summary || '',
+          items: data.memory_overview?.what_to_watch || [],
+          peg_summary: data.peg_summary || null,
+        };
+      }
+    } catch (_) {}
+
+    if (keyEvents.length === 0) {
+      $('script').each((_, el) => {
+        const text = $(el).html() || '';
+        if (text.includes('key_events')) {
+          try {
+            const parsed = JSON.parse(text);
+            const events = parsed.key_events || parsed.memory_overview?.key_events;
+            if (Array.isArray(events)) {
+              keyEvents = events.map((ev) => ({
+                date: ev.chart_date || ev.date || null,
+                label: ev.label || '',
+              }));
+            }
+          } catch (_) {}
+        }
+      });
+    }
+
+    const result = {
+      slug,
+      key_events: keyEvents,
+      what_to_watch: whatToWatch,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.TIMELINE, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getStockNews(query, { limit = 10, days = 90, fresh = false } = {}) {
+    const trimmed = String(query).trim();
+    const numLimit = Number(limit) || 10;
+    const numDays = Number(days) || 90;
+    const cacheKey = `news:${trimmed}:${numDays}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) {
+        return {
+          ...cached,
+          news: (cached.news || []).slice(0, numLimit),
+        };
+      }
+    }
+
+    const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(trimmed)}+when:${numDays}d&hl=en-IN&gl=IN&ceid=IN:en`;
+    let items = [];
+
+    try {
+      const fetched = await this._fetch(rssUrl, { fresh });
+      const xml = await fetched.response.text();
+      const $ = cheerio.load(xml, { xmlMode: true });
+
+      $('item').each((_, el) => {
+        const rawTitle = $(el).find('title').text().trim();
+        const link = $(el).find('link').text().trim();
+        const pubDate = $(el).find('pubDate').text().trim();
+        const source = $(el).find('source').text().trim();
+
+        let title = rawTitle;
+        if (source && title.endsWith(` - ${source}`)) {
+          title = title.slice(0, -(source.length + 3)).trim();
+        }
+
+        let isoDate = null;
+        if (pubDate) {
+          try {
+            isoDate = new Date(pubDate).toISOString();
+          } catch (_) {
+            isoDate = pubDate;
+          }
+        }
+
+        if (title && link) {
+          items.push({
+            title,
+            source: source || 'Unknown',
+            url: link,
+            published_at: isoDate || pubDate,
+          });
+        }
+      });
+    } catch (_) {}
+
+    const totalFound = items.length;
+    const fullResult = {
+      query: trimmed,
+      days: numDays,
+      total_found: totalFound,
+      news: items,
+      ...(totalFound === 0 ? { note: 'No news found or RSS feed temporarily unavailable' } : {}),
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, fullResult, TTL.NEWS, 'json');
+    }
+
+    return {
+      ...fullResult,
+      news: items.slice(0, numLimit),
+    };
+  }
 }

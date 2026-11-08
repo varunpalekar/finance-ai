@@ -283,4 +283,23 @@ test('live integration test suite covering all 20 MCP functions with real data v
     assert.ok(res.scenarios[0].probability.includes('%'));
     assert.ok(res.forecasts.years.length >= 4);
   });
+
+  // 24. get_company_timeline
+  await t.test('24. get_company_timeline: extracts verified key_events and guidance for bank-of-maharashtra', async () => {
+    const res = await client.getCompanyTimeline('bank-of-maharashtra');
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.ok(Array.isArray(res.key_events));
+    assert.ok(res.what_to_watch.analyst_summary.length > 20);
+  });
+
+  // 25. get_stock_news
+  await t.test('25. get_stock_news: queries live Google News RSS for NSE:MAHABANK', async () => {
+    const res = await client.getStockNews('NSE:MAHABANK', { limit: 5, days: 90 });
+    assert.ok(res);
+    assert.ok(res.total_found >= 1);
+    assert.ok(res.news.length >= 1);
+    assert.ok(res.news[0].title);
+    assert.ok(res.news[0].url.startsWith('http'));
+  });
 });
