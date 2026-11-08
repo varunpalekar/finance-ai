@@ -2052,4 +2052,134 @@ export class TijoriClient {
       news: items.slice(0, numLimit),
     };
   }
+
+  async getCorporateActions(slug, { fresh = false } = {}) {
+    const cacheKey = `corporate_actions:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const { $, html } = await this._fetchCompanyOverviewHtml(slug, { fresh });
+
+    let dividends = [];
+    let splits = [];
+    let bonuses = [];
+    let rights = [];
+
+    const scriptEl = $('#corporate_actions');
+    if (scriptEl.length) {
+      try {
+        const parsed = JSON.parse(scriptEl.html());
+        if (Array.isArray(parsed.Dividend)) dividends = parsed.Dividend;
+        if (Array.isArray(parsed.Split)) splits = parsed.Split;
+        if (Array.isArray(parsed.Bonus)) bonuses = parsed.Bonus;
+        if (Array.isArray(parsed.Rights)) rights = parsed.Rights;
+      } catch (_) {}
+    }
+
+    if (dividends.length === 0 && splits.length === 0 && bonuses.length === 0) {
+      $('script').each((_, el) => {
+        const text = $(el).html() || '';
+        if (text.includes('Dividend') && (text.includes('Bonus') || text.includes('Split'))) {
+          try {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed.Dividend)) dividends = parsed.Dividend;
+            if (Array.isArray(parsed.Split)) splits = parsed.Split;
+            if (Array.isArray(parsed.Bonus)) bonuses = parsed.Bonus;
+            if (Array.isArray(parsed.Rights)) rights = parsed.Rights;
+          } catch (_) {}
+        }
+      });
+    }
+
+    const result = {
+      slug,
+      dividends,
+      splits,
+      bonuses,
+      rights,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.ACTIONS, 'json', slug);
+    }
+
+    return result;
+  }
+
+  async getSupplyChain(slug, { fresh = false } = {}) {
+    const cacheKey = `supply_chain:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    const { $, html } = await this._fetchCompanyOverviewHtml(slug, { fresh });
+
+    let operationalSupplierNotes = [];
+    let operationalCustomerNotes = [];
+    let relationalProducts = [];
+    let industriesCatered = [];
+
+    try {
+      const scriptEl = $('#company_details_data');
+      if (scriptEl.length) {
+        const data = JSON.parse(scriptEl.html());
+        if (data.sector) industriesCatered.push(data.sector);
+
+        const sentences = [];
+        if (Array.isArray(data.memory_overview?.the_read)) {
+          sentences.push(...data.memory_overview.the_read);
+        }
+        if (Array.isArray(data.memory_overview?.what_to_watch)) {
+          for (const item of data.memory_overview.what_to_watch) {
+            if (item.body) sentences.push(item.body);
+          }
+        }
+
+        for (const s of sentences) {
+          const lower = s.toLowerCase();
+          if (
+            lower.includes('supplier') ||
+            lower.includes('input') ||
+            lower.includes('raw material') ||
+            lower.includes('capacity') ||
+            lower.includes('accrual') ||
+            lower.includes('spending') ||
+            lower.includes('procurement')
+          ) {
+            operationalSupplierNotes.push(s);
+          }
+          if (
+            lower.includes('customer') ||
+            lower.includes('client') ||
+            lower.includes('buyer') ||
+            lower.includes('sells') ||
+            lower.includes('promoter') ||
+            lower.includes('receivable') ||
+            lower.includes('market share')
+          ) {
+            operationalCustomerNotes.push(s);
+          }
+        }
+      }
+    } catch (_) {}
+
+    const result = {
+      slug,
+      operational_supplier_notes: operationalSupplierNotes,
+      operational_customer_notes: operationalCustomerNotes,
+      relational_products: relationalProducts,
+      industries_catered: industriesCatered,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.SUPPLY_CHAIN, 'json', slug);
+    }
+
+    return result;
+  }
 }

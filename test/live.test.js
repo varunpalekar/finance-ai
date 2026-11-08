@@ -302,4 +302,22 @@ test('live integration test suite covering all 20 MCP functions with real data v
     assert.ok(res.news[0].title);
     assert.ok(res.news[0].url.startsWith('http'));
   });
+
+  // 26. get_corporate_actions
+  await t.test('26. get_corporate_actions: retrieves authentic dividends and splits for swaraj-engines-limited', async () => {
+    const res = await client.getCorporateActions('swaraj-engines-limited');
+    assert.ok(res);
+    assert.equal(res.slug, 'swaraj-engines-limited');
+    assert.ok(Array.isArray(res.dividends) && res.dividends.length >= 5);
+    assert.ok(res.dividends[0].ex_date);
+  });
+
+  // 27. get_supply_chain
+  await t.test('27. get_supply_chain: extracts supplier and customer notes for swaraj-engines-limited', async () => {
+    const res = await client.getSupplyChain('swaraj-engines-limited');
+    assert.ok(res);
+    assert.equal(res.slug, 'swaraj-engines-limited');
+    assert.ok(Array.isArray(res.operational_supplier_notes));
+    assert.ok(Array.isArray(res.operational_customer_notes));
+  });
 });
