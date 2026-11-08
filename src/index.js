@@ -15,7 +15,17 @@ const server = new McpServer({ name: 'tijori-finance', version: '1.0.0' });
 
 export async function resolveTicker(args, tijoriClient = client, perplexityClient = pplxClient) {
   if (args?.ticker && typeof args.ticker === 'string' && args.ticker.trim()) {
-    return perplexityClient.normalizeTicker(args.ticker);
+    const rawTicker = args.ticker.trim();
+    if (/^\d+$/.test(rawTicker)) {
+      const results = await tijoriClient.searchCompany(rawTicker).catch(() => []);
+      if (results && results[0]?.slug) {
+        const info = await tijoriClient.resolveCompanyIds(results[0].slug).catch(() => null);
+        if (info?.symbol) {
+          return perplexityClient.normalizeTicker(info.symbol);
+        }
+      }
+    }
+    return perplexityClient.normalizeTicker(rawTicker);
   }
   if (args?.slug && typeof args.slug === 'string' && args.slug.trim()) {
     const info = await tijoriClient.resolveCompanyIds(args.slug.trim());

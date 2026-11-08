@@ -17,6 +17,19 @@ describe('Perplexity MCP Tool Helpers & Registration', () => {
 
     assert.equal(await resolveTicker({ ticker: 'reliance.ns' }, mockTijori, pplxClient), 'RELIANCE.NS');
     assert.equal(await resolveTicker({ slug: 'hero-motocorp-limited' }, mockTijori, pplxClient), 'HEROMOTOCO.NS');
+
+    const mockTijoriWithSearch = {
+      searchCompany: async (query) => {
+        if (query === '500182') return [{ name: 'Hero MotoCorp Ltd.', slug: 'hero-motocorp-limited' }];
+        return [];
+      },
+      resolveCompanyIds: async (slug) => {
+        if (slug === 'hero-motocorp-limited') return { symbol: 'HEROMOTOCO' };
+        throw new Error('Company not found');
+      }
+    };
+    assert.equal(await resolveTicker({ ticker: '500182' }, mockTijoriWithSearch, pplxClient), 'HEROMOTOCO.NS');
+
     await assert.rejects(
       async () => resolveTicker({ slug: 'invalid-slug' }, mockTijori, pplxClient),
       /Company not found/
