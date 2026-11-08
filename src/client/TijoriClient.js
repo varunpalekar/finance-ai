@@ -1656,4 +1656,132 @@ export class TijoriClient {
 
     return result;
   }
+
+  async getValuationBands(slug, { fresh = false } = {}) {
+    const cacheKey = `valuation_bands:${slug}`;
+
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(cacheKey);
+      if (cached) return cached;
+    }
+
+    // 1. Fetch overview page first to resolve company_id and peers
+    const overviewFetched = await this._fetch(`/company/${slug}/`, { fresh });
+    const overviewHtml = await overviewFetched.response.text();
+    const $ = cheerio.load(overviewHtml);
+
+    let companyId = null;
+    const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
+    if (companyIdMatch) {
+      companyId = parseInt(companyIdMatch[1], 10);
+    } else {
+      const ids = await this.resolveCompanyIds(slug, { fresh });
+      companyId = ids?.company_id ?? null;
+    }
+
+    // Extract peers from #peers_table_data
+    let peers = [];
+    try {
+      const scriptEl = $('#peers_table_data');
+      if (scriptEl.length) {
+        const raw = JSON.parse(scriptEl.html());
+        const data = raw?.[1]?.data || [];
+        peers = data.map((p) => ({
+          name: p.name || null,
+          slug: p.slug || null,
+          mcap: p['Market Capital'] ?? null,
+          pe: typeof p.PE === 'number' ? p.PE : null,
+          latest_price: p['Latest Price'] ?? null,
+        }));
+      }
+    } catch (_) {}
+
+    if (!companyId) {
+      const fallback = {
+        slug,
+        company_id: null,
+        current_pe: null,
+        valuation_bands: { '1y': null, '3y': null, '5y': null, '10y': null },
+        peers,
+        loss_making_days_excluded: 0,
+        note: 'Unable to resolve numeric company_id for valuation bands',
+      };
+      if (this.cacheEnabled) {
+        set(cacheKey, fallback, TTL.VALUATION, 'json', slug);
+      }
+      return fallback;
+    }
+
+    // 2. Fetch daily historical P/E series
+    const chartFetched = await this._fetch(`/api/v1/ind/chartdata/${companyId}/pe/`, { fresh });
+    const chartJson = await chartFetched.response.json();
+    let rawPoints = [];
+    if (chartJson?.data) {
+      rawPoints = typeof chartJson.data === 'string' ? JSON.parse(chartJson.data) : chartJson.data;
+    }
+
+    let lossDaysCount = 0;
+    const validPoints = [];
+    for (const point of rawPoints) {
+      if (Array.isArray(point) && point.length >= 2) {
+        const [ts, pe] = point;
+        if (typeof pe === 'number') {
+          if (pe <= 0) {
+            lossDaysCount++;
+          } else {
+            validPoints.push([ts, pe]);
+          }
+        }
+      }
+    }
+
+    validPoints.sort((a, b) => a[0] - b[0]);
+    const currentPe = validPoints.length > 0 ? validPoints[validPoints.length - 1][1] : null;
+
+    const valuationBands = { '1y': null, '3y': null, '5y': null, '10y': null };
+    if (validPoints.length > 0) {
+      const maxTs = validPoints[validPoints.length - 1][0];
+      const minTs = validPoints[0][0];
+      const totalSpanDays = (maxTs - minTs) / 86400000;
+
+      const timeframeDefs = [
+        { key: '1y', days: 365 },
+        { key: '3y', days: 3 * 365 },
+        { key: '5y', days: 5 * 365 },
+        { key: '10y', days: 10 * 365 },
+      ];
+
+      for (const tf of timeframeDefs) {
+        if (totalSpanDays >= tf.days * 0.8) {
+          const cutoffTs = maxTs - tf.days * 86400000;
+          const windowPoints = validPoints.filter(([ts]) => ts >= cutoffTs);
+          const peValues = windowPoints.map(([, pe]) => pe);
+          const stats = computePercentiles(peValues, [0.25, 0.5, 0.75]);
+          valuationBands[tf.key] = {
+            min: stats.min,
+            p25: stats.p25,
+            median: stats.p50,
+            p75: stats.p75,
+            max: stats.max,
+            sample_count: stats.count,
+          };
+        }
+      }
+    }
+
+    const result = {
+      slug,
+      company_id: companyId,
+      current_pe: currentPe,
+      valuation_bands: valuationBands,
+      peers,
+      loss_making_days_excluded: lossDaysCount,
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.VALUATION, 'json', slug);
+    }
+
+    return result;
+  }
 }

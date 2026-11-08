@@ -257,4 +257,19 @@ test('live integration test suite covering all 20 MCP functions with real data v
     assert.equal(typeof res.radar_axes[0].company_score, 'number');
     assert.equal(typeof res.radar_axes[0].peer_median, 'number');
   });
+
+  // 22. get_valuation_bands
+  await t.test('22. get_valuation_bands: aggregates authentic daily historical P/E for swaraj-engines-limited', async () => {
+    const res = await client.getValuationBands('swaraj-engines-limited');
+    assert.ok(res);
+    assert.equal(res.slug, 'swaraj-engines-limited');
+    assert.equal(typeof res.current_pe, 'number');
+    assert.ok(res.valuation_bands['1y']);
+    assert.ok(res.valuation_bands['3y']);
+    assert.ok(res.valuation_bands['5y']);
+    assert.ok(res.valuation_bands['10y']);
+    const b1y = res.valuation_bands['1y'];
+    assert.ok(b1y.min <= b1y.p25 && b1y.p25 <= b1y.median && b1y.median <= b1y.p75 && b1y.p75 <= b1y.max);
+    assert.ok(Array.isArray(res.peers) && res.peers.length >= 1);
+  });
 });
