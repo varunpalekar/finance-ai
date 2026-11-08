@@ -81,14 +81,16 @@ async function main() {
 
   const sessionData = {
     updated_at: new Date().toISOString(),
-    cookies: allCookies.map(c => ({
-      name: c.name,
-      value: c.value,
-      domain: c.domain,
-      path: c.path,
-      secure: c.secure,
-      httpOnly: c.httpOnly
-    }))
+    cookies: allCookies
+      .filter(c => c.domain?.includes('perplexity.ai'))
+      .map(c => ({
+        name: c.name,
+        value: c.value,
+        domain: c.domain,
+        path: c.path,
+        secure: c.secure,
+        httpOnly: c.httpOnly
+      }))
   };
 
   writeFileSync(SESSION_PATH, JSON.stringify(sessionData, null, 2));

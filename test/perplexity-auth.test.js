@@ -67,4 +67,24 @@ describe('Perplexity Session Governance', () => {
     assert.ok(client.getCookieHeader().includes('refreshed_token'));
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  test('filters out third-party cookies from Cookie header to prevent credential leakage', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pplx-auth-'));
+    const sessionFile = path.join(tmpDir, 'perplexity_session.json');
+    fs.writeFileSync(sessionFile, JSON.stringify({
+      cookies: [
+        { name: '__Secure-next-auth.session-token', value: 'pplx_token', domain: '.perplexity.ai' },
+        { name: 'SSID', value: 'google_secret_token', domain: '.google.com' },
+        { name: 'oauth_state', value: 'state_123', domain: 'accounts.google.com' }
+      ]
+    }));
+
+    const client = new PerplexityClient({ sessionPath: sessionFile });
+    const cookieHeader = client.getCookieHeader();
+
+    assert.ok(cookieHeader.includes('pplx_token'));
+    assert.equal(cookieHeader.includes('google_secret_token'), false, 'Must not leak Google cookies');
+    assert.equal(cookieHeader.includes('state_123'), false, 'Must not leak Google OAuth cookies');
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });

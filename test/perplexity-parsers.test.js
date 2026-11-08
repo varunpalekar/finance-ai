@@ -26,8 +26,13 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     const entry = res.timeline[0];
     assert.ok(typeof entry.price === 'number');
     assert.ok(typeof entry.price_movement === 'number');
+    assert.ok(typeof entry.price_movement_percent === 'number');
     assert.ok(entry.narrative.length > 20);
     assert.equal(entry.has_catalyst, true);
+
+    const noCat = parseCatalysts([{ description: 'No new macro, sector or company catalysts detected' }], TICKER);
+    assert.equal(noCat.timeline[0].has_catalyst, false);
+
     assert.ok(Array.isArray(entry.sources));
     assert.ok(entry.sources.length > 0);
     assert.ok(entry.sources[0].url.startsWith('http'));
@@ -61,9 +66,21 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.fiscal_year, 2027);
     assert.equal(res.consensus_comparison.actual_revenue, 145471600000);
     assert.equal(res.consensus_comparison.actual_eps, 72.69);
+    assert.ok(Array.isArray(res.historical_quarters));
+    assert.ok(res.historical_quarters.length > 0);
     assert.ok(res.ai_highlights.length > 0);
     assert.ok(res.transcript.paragraphs.length > 0);
     assert.ok(res.transcript.paragraphs[0].speaker.length > 0);
+    assert.ok(Array.isArray(res.transcript.chapters));
+    assert.ok(res.transcript.chapters.length > 0);
+    assert.ok(res.transcript.audio_url.startsWith('http'));
+    assert.equal(res.transcript.chapter_selected, 'prepared_remarks');
+
+    // Test Q&A filter
+    const qaRes = parseEarnings(earningsRaw, analysisRaw, transcriptRaw, { ticker: TICKER, includeTranscript: true, chapterFilter: 'qa' });
+    assert.equal(qaRes.transcript.chapter_selected, 'qa');
+    assert.ok(qaRes.transcript.paragraphs.length > 0);
+    assert.ok(qaRes.transcript.paragraphs[0].time >= 1113, 'Q&A first paragraph must be within Q&A chapter timestamp');
   });
 
   test('parseEarnings gracefully degrades when analysis or transcript is null/missing (404)', () => {

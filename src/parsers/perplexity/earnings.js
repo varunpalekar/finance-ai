@@ -1,6 +1,7 @@
 export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options = {}) {
   const ticker = options.ticker || '';
   const includeTranscript = options.includeTranscript ?? false;
+  const chapterFilter = options.chapterFilter || 'prepared_remarks';
   const list = Array.isArray(earningsRaw) ? earningsRaw : [];
 
   if (list.length === 0) {
@@ -10,6 +11,7 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
       fiscal_period: null,
       fiscal_year: null,
       consensus_comparison: null,
+      historical_quarters: [],
       ai_highlights: [],
       transcript: null
     };
@@ -26,6 +28,7 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
       fiscal_period: null,
       fiscal_year: null,
       consensus_comparison: null,
+      historical_quarters: [],
       ai_highlights: [],
       transcript: null
     };
@@ -44,6 +47,17 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
     ? Number((((actualEps - estEps) / Math.abs(estEps)) * 100).toFixed(2))
     : null;
 
+  const historicalQuarters = list.map(q => ({
+    id: q?.id ?? null,
+    fiscal_year: q?.fiscalYear ?? null,
+    fiscal_period: q?.fiscalPeriod ?? null,
+    date: q?.date ?? null,
+    actual_revenue: typeof q?.actualRevenue === 'number' ? q.actualRevenue : null,
+    estimated_revenue: typeof q?.estimatedRevenue === 'number' ? q.estimatedRevenue : null,
+    actual_eps: typeof q?.actualEps === 'number' ? q.actualEps : null,
+    estimated_eps: typeof q?.estimatedEps === 'number' ? q.estimatedEps : null
+  }));
+
   let aiHighlights = [];
   if (analysisRaw?.analysis && typeof analysisRaw.analysis === 'string') {
     aiHighlights = analysisRaw.analysis
@@ -55,8 +69,27 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
   let transcript = null;
   if (includeTranscript && transcriptRaw?.paragraphs) {
     const rawParagraphs = Array.isArray(transcriptRaw.paragraphs) ? transcriptRaw.paragraphs : [];
+    const chapters = Array.isArray(transcriptRaw.chapters) ? transcriptRaw.chapters : [];
+
+    let filtered = rawParagraphs;
+    if (chapters.length > 0) {
+      const prChapter = chapters.find(c => c.title?.toLowerCase().includes('prepared remarks'));
+      const qaChapter = chapters.find(c => c.title?.toLowerCase().includes('q&a') || c.title?.toLowerCase().includes('question'));
+
+      if (chapterFilter === 'qa' && qaChapter) {
+        filtered = rawParagraphs.filter(p => typeof p.time === 'number' && p.time >= qaChapter.startTimestamp && (qaChapter.endTimestamp == null || p.time <= qaChapter.endTimestamp));
+      } else if (chapterFilter === 'prepared_remarks' && prChapter) {
+        filtered = rawParagraphs.filter(p => typeof p.time === 'number' && p.time >= (prChapter.startTimestamp || 0) && p.time <= prChapter.endTimestamp);
+      }
+    }
+
     transcript = {
-      paragraphs: rawParagraphs.slice(0, 50).map(p => ({
+      audio_url: transcriptRaw.audio || null,
+      chapter_selected: chapterFilter,
+      chapters,
+      total_paragraphs: filtered.length,
+      is_truncated: filtered.length > 50,
+      paragraphs: filtered.slice(0, 50).map(p => ({
         speaker: p.speakers?.[0] || 'Unknown',
         text: p.text || '',
         time: p.time ?? null
@@ -78,6 +111,7 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
       estimated_eps: estEps,
       eps_beat_percent: epsBeat
     },
+    historical_quarters: historicalQuarters,
     ai_highlights: aiHighlights,
     transcript
   };

@@ -67,6 +67,59 @@ describe('PerplexityClient Core', () => {
       (err) => err.code === 'PERPLEXITY_AUTH_REQUIRED'
     );
   });
+
+  test('fetchText and fetchJson return identical plain types on SQLite cache hits', async () => {
+    let textCalls = 0;
+    let jsonCalls = 0;
+    const client = new PerplexityClient();
+    client._rawFetch = async (url) => {
+      if (url.includes('/text')) {
+        textCalls++;
+        return { ok: true, status: 200, text: async () => 'raw profile text description' };
+      }
+      jsonCalls++;
+      return { ok: true, status: 200, json: async () => ({ company: 'Hero' }) };
+    };
+
+    // First calls (cache miss)
+    const t1 = await client.fetchText('/text', { cacheKey: 'pplx:test:text', ttl: 10000 });
+    const j1 = await client.fetchJson('/json', { cacheKey: 'pplx:test:json', ttl: 10000 });
+
+    assert.equal(typeof t1, 'string');
+    assert.equal(t1, 'raw profile text description');
+    assert.equal(typeof j1, 'object');
+    assert.equal(j1.company, 'Hero');
+
+    // Second calls (cache hit)
+    const t2 = await client.fetchText('/text', { cacheKey: 'pplx:test:text', ttl: 10000 });
+    const j2 = await client.fetchJson('/json', { cacheKey: 'pplx:test:json', ttl: 10000 });
+
+    assert.equal(textCalls, 1, 'Should not fetch text from network again');
+    assert.equal(jsonCalls, 1, 'Should not fetch json from network again');
+    assert.equal(typeof t2, 'string', 'Cached text must be string, not object with _cache_meta');
+    assert.equal(t2, 'raw profile text description');
+    assert.equal(j2.company, 'Hero');
+  });
+
+  test('retries with bare US ticker if auto-suffixed .NS returns 404', async () => {
+    const client = new PerplexityClient();
+    const queried = [];
+    client._rawFetch = async (url) => {
+      queried.push(url);
+      if (url.includes('/CRM.NS')) {
+        return { ok: false, status: 404, statusText: 'Not Found', text: async () => 'Not found' };
+      }
+      if (url.includes('/CRM')) {
+        return { ok: true, status: 200, json: async () => ({ name: 'Salesforce', symbol: 'CRM' }), text: async () => 'Salesforce profile' };
+      }
+      throw new Error('Unexpected url: ' + url);
+    };
+
+    const res = await client.getCompanyStrategicProfile('CRM');
+    assert.equal(res.company_name, 'Salesforce');
+    assert.ok(queried.some(u => u.includes('/CRM.NS')), 'Must query auto-suffixed .NS first');
+    assert.ok(queried.some(u => u.includes('/quote/CRM')), 'Must fall back to bare US ticker');
+  });
 });
 
 describe('PerplexityClient High-Level Methods', () => {

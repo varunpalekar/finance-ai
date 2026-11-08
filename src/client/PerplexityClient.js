@@ -56,7 +56,7 @@ export class PerplexityClient {
         this._sessionMtime = stat.mtimeMs;
       }
       return this._cachedCookies
-        .filter(c => c && c.name && c.value)
+        .filter(c => c && c.name && c.value && (!c.domain || c.domain.includes('perplexity.ai')))
         .map(c => `${c.name}=${c.value}`)
         .join('; ');
     } catch (_) {
@@ -133,7 +133,9 @@ export class PerplexityClient {
 
     if (!fresh && cKey) {
       const cached = get(cKey);
-      if (cached !== null) return cached;
+      if (cached !== null) {
+        return typeof cached === 'object' && cached !== null && 'value' in cached ? cached.value : cached;
+      }
     }
 
     if (this._inFlight.has(endpoint)) {
@@ -195,7 +197,9 @@ export class PerplexityClient {
 
     if (!fresh && cKey) {
       const cached = get(cKey);
-      if (cached !== null) return cached;
+      if (cached !== null) {
+        return typeof cached === 'object' && cached !== null && 'value' in cached ? cached.value : cached;
+      }
     }
 
     if (this._inFlight.has(endpoint)) {
@@ -251,123 +255,141 @@ export class PerplexityClient {
     }
   }
 
+  async _queryWithUsFallback(ticker, fn) {
+    const norm = this.normalizeTicker(ticker);
+    try {
+      return await fn(norm);
+    } catch (err) {
+      if (err.status === 404 && norm.endsWith('.NS') && !ticker.includes('.')) {
+        const bare = norm.slice(0, -3);
+        return await fn(bare);
+      }
+      throw err;
+    }
+  }
+
   async getPriceMovementCatalysts(ticker, options = {}) {
-    const normTicker = this.normalizeTicker(ticker);
-    const limit = options.limit || 100;
-    const endpoint = `/rest/finance/timeline/${normTicker}/entries?limit=${limit}`;
-    const cacheKey = this.cacheKey('timeline', normTicker, `limit=${limit}`);
-    const ttl = TTL.TIMELINE || (24 * 3600 * 1000);
-    const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
-    return parseCatalysts(raw, normTicker);
+    return this._queryWithUsFallback(ticker, async (normTicker) => {
+      const limit = options.limit || 100;
+      const endpoint = `/rest/finance/timeline/${normTicker}/entries?limit=${limit}`;
+      const cacheKey = this.cacheKey('timeline', normTicker, `limit=${limit}`);
+      const ttl = TTL.TIMELINE || (24 * 3600 * 1000);
+      const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
+      return parseCatalysts(raw, normTicker);
+    });
   }
 
   async getBrokerageReports(ticker, options = {}) {
-    const normTicker = this.normalizeTicker(ticker);
-    const endpoint = `/rest/finance/documents/${normTicker}`;
-    const cacheKey = this.cacheKey('reports', normTicker);
-    const ttl = 24 * 3600 * 1000;
-    const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
-    return parseReports(raw, normTicker);
+    return this._queryWithUsFallback(ticker, async (normTicker) => {
+      const endpoint = `/rest/finance/documents/${normTicker}`;
+      const cacheKey = this.cacheKey('reports', normTicker);
+      const ttl = 24 * 3600 * 1000;
+      const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
+      return parseReports(raw, normTicker);
+    });
   }
 
   async getEarningsIntelligence(ticker, options = {}) {
-    const normTicker = this.normalizeTicker(ticker);
-    const includeTranscript = options.includeTranscript ?? false;
-    const chapterFilter = options.chapterFilter || 'prepared_remarks';
+    return this._queryWithUsFallback(ticker, async (normTicker) => {
+      const includeTranscript = options.includeTranscript ?? false;
+      const chapterFilter = options.chapterFilter || 'prepared_remarks';
 
-    const earningsEndpoint = `/rest/finance/earnings/${normTicker}`;
-    const earningsCacheKey = this.cacheKey('earnings', normTicker);
-    const earningsRaw = await this.fetchJson(earningsEndpoint, {
-      fresh: options.fresh,
-      ttl: 7 * 86400 * 1000,
-      cacheKey: earningsCacheKey
-    });
-
-    const list = Array.isArray(earningsRaw) ? earningsRaw : [];
-    const activeEvent = options.eventId
-      ? list.find(e => e && e.id === Number(options.eventId))
-      : (list.find(e => e && e.actualRevenue != null) || list[0]);
-
-    if (!activeEvent || !activeEvent.id) {
-      return parseEarnings(earningsRaw, null, null, {
-        ticker: normTicker,
-        eventId: options.eventId,
-        includeTranscript: false
-      });
-    }
-
-    const eventId = activeEvent.id;
-
-    // Stagger request by 150ms before analysis
-    await new Promise(r => setTimeout(r, 150));
-
-    let analysisRaw = null;
-    try {
-      const analysisEndpoint = `/rest/finance/earnings/${normTicker}/analysis/${eventId}`;
-      const analysisCacheKey = this.cacheKey('earnings_analysis', normTicker, `event=${eventId}`);
-      analysisRaw = await this.fetchJson(analysisEndpoint, {
+      const earningsEndpoint = `/rest/finance/earnings/${normTicker}`;
+      const earningsCacheKey = this.cacheKey('earnings', normTicker);
+      const earningsRaw = await this.fetchJson(earningsEndpoint, {
         fresh: options.fresh,
-        ttl: 30 * 86400 * 1000,
-        cacheKey: analysisCacheKey
+        ttl: 7 * 86400 * 1000,
+        cacheKey: earningsCacheKey
       });
-    } catch (err) {
-      if (err.status !== 404) throw err;
-    }
 
-    let transcriptRaw = null;
-    if (includeTranscript) {
-      // Stagger request by 150ms before transcript
+      const list = Array.isArray(earningsRaw) ? earningsRaw : [];
+      const activeEvent = options.eventId
+        ? list.find(e => e && e.id === Number(options.eventId))
+        : (list.find(e => e && e.actualRevenue != null) || list[0]);
+
+      if (!activeEvent || !activeEvent.id) {
+        return parseEarnings(earningsRaw, null, null, {
+          ticker: normTicker,
+          eventId: options.eventId,
+          includeTranscript: false
+        });
+      }
+
+      const eventId = activeEvent.id;
+
+      // Stagger request by 150ms before analysis
       await new Promise(r => setTimeout(r, 150));
+
+      let analysisRaw = null;
       try {
-        const transcriptEndpoint = `/rest/finance/earnings/${normTicker}/transcript/${eventId}`;
-        const transcriptCacheKey = this.cacheKey('earnings_transcript', normTicker, `event=${eventId}`);
-        transcriptRaw = await this.fetchJson(transcriptEndpoint, {
+        const analysisEndpoint = `/rest/finance/earnings/${normTicker}/analysis/${eventId}`;
+        const analysisCacheKey = this.cacheKey('earnings_analysis', normTicker, `event=${eventId}`);
+        analysisRaw = await this.fetchJson(analysisEndpoint, {
           fresh: options.fresh,
           ttl: 30 * 86400 * 1000,
-          cacheKey: transcriptCacheKey
+          cacheKey: analysisCacheKey
         });
       } catch (err) {
         if (err.status !== 404) throw err;
       }
-    }
 
-    return parseEarnings(earningsRaw, analysisRaw, transcriptRaw, {
-      ticker: normTicker,
-      eventId,
-      includeTranscript,
-      chapterFilter
+      let transcriptRaw = null;
+      if (includeTranscript) {
+        // Stagger request by 150ms before transcript
+        await new Promise(r => setTimeout(r, 150));
+        try {
+          const transcriptEndpoint = `/rest/finance/earnings/${normTicker}/transcript/${eventId}`;
+          const transcriptCacheKey = this.cacheKey('earnings_transcript', normTicker, `event=${eventId}`);
+          transcriptRaw = await this.fetchJson(transcriptEndpoint, {
+            fresh: options.fresh,
+            ttl: 30 * 86400 * 1000,
+            cacheKey: transcriptCacheKey
+          });
+        } catch (err) {
+          if (err.status !== 404) throw err;
+        }
+      }
+
+      return parseEarnings(earningsRaw, analysisRaw, transcriptRaw, {
+        ticker: normTicker,
+        eventId,
+        includeTranscript,
+        chapterFilter
+      });
     });
   }
 
   async getCompanyStrategicProfile(ticker, options = {}) {
-    const normTicker = this.normalizeTicker(ticker);
-    const quoteEndpoint = `/rest/finance/quote/${normTicker}`;
-    const quoteCacheKey = this.cacheKey('quote', normTicker);
-    const descEndpoint = `/rest/finance/profile/${normTicker}/description`;
-    const descCacheKey = this.cacheKey('profile_description', normTicker);
+    return this._queryWithUsFallback(ticker, async (normTicker) => {
+      const quoteEndpoint = `/rest/finance/quote/${normTicker}`;
+      const quoteCacheKey = this.cacheKey('quote', normTicker);
+      const descEndpoint = `/rest/finance/profile/${normTicker}/description`;
+      const descCacheKey = this.cacheKey('profile_description', normTicker);
 
-    const [quoteRes, descRes] = await Promise.allSettled([
-      this.fetchJson(quoteEndpoint, { fresh: options.fresh, ttl: 2 * 3600 * 1000, cacheKey: quoteCacheKey }),
-      this.fetchText(descEndpoint, { fresh: options.fresh, ttl: 7 * 86400 * 1000, cacheKey: descCacheKey })
-    ]);
+      const [quoteRes, descRes] = await Promise.allSettled([
+        this.fetchJson(quoteEndpoint, { fresh: options.fresh, ttl: 2 * 3600 * 1000, cacheKey: quoteCacheKey }),
+        this.fetchText(descEndpoint, { fresh: options.fresh, ttl: 7 * 86400 * 1000, cacheKey: descCacheKey })
+      ]);
 
-    if (quoteRes.status === 'rejected') {
-      throw quoteRes.reason;
-    }
+      if (quoteRes.status === 'rejected') {
+        throw quoteRes.reason;
+      }
 
-    const quoteRaw = quoteRes.value;
-    const descRaw = descRes.status === 'fulfilled' ? descRes.value : '';
+      const quoteRaw = quoteRes.value;
+      const descRaw = descRes.status === 'fulfilled' ? descRes.value : '';
 
-    return parseProfile(quoteRaw, descRaw, normTicker);
+      return parseProfile(quoteRaw, descRaw, normTicker);
+    });
   }
 
   async getCuratedNews(ticker, options = {}) {
-    const normTicker = this.normalizeTicker(ticker);
-    const limit = options.limit || 10;
-    const endpoint = `/rest/finance/publisher-news/${normTicker}?limit=${limit}`;
-    const cacheKey = this.cacheKey('news', normTicker, `limit=${limit}`);
-    const ttl = TTL.NEWS || (3600 * 1000);
-    const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
-    return parseNews(raw, normTicker);
+    return this._queryWithUsFallback(ticker, async (normTicker) => {
+      const limit = options.limit || 10;
+      const endpoint = `/rest/finance/publisher-news/${normTicker}?limit=${limit}`;
+      const cacheKey = this.cacheKey('news', normTicker, `limit=${limit}`);
+      const ttl = TTL.NEWS || (3600 * 1000);
+      const raw = await this.fetchJson(endpoint, { fresh: options.fresh, ttl, cacheKey });
+      return parseNews(raw, normTicker);
+    });
   }
 }
