@@ -114,6 +114,35 @@ test('getStockNews does not leak Tijori session cookies, CSRF, Referer, or Origi
   assert.equal(capturedHeaders['Referer'], undefined, 'Must not leak Referer header to Google News');
 });
 
+test('client strictly validates Tijori hostname boundary against suffix hijacking', async () => {
+  let capturedHeaders = null;
+  const mockFetch = async (url, init) => {
+    capturedHeaders = init.headers;
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const client = new TijoriClient({
+    fetchFn: mockFetch,
+    cacheEnabled: false,
+    sessionPath: '/non-existent-session.json',
+  });
+  client._session = {
+    cookieHeader: 'sessionid=secret_cookie_123',
+    csrfToken: 'secret_csrf_456',
+  };
+
+  // 1. Attacker domain mimicking tijorifinance.com suffix
+  await client._fetch('https://attacker-tijorifinance.com/leak');
+  assert.equal(capturedHeaders['Cookie'], undefined, 'Must not leak Cookie to attacker-tijorifinance.com');
+  assert.equal(capturedHeaders['X-CSRFToken'], undefined, 'Must not leak CSRF token to attacker-tijorifinance.com');
+  assert.equal(capturedHeaders['Origin'], undefined, 'Must not leak Origin to attacker-tijorifinance.com');
+  assert.equal(capturedHeaders['Referer'], undefined, 'Must not leak Referer to attacker-tijorifinance.com');
+
+  // 2. Legitimate subdomain receives credentials
+  await client._fetch('https://files.tijorifinance.com/file.pdf');
+  assert.equal(capturedHeaders['Cookie'], 'sessionid=secret_cookie_123');
+  assert.equal(capturedHeaders['X-CSRFToken'], 'secret_csrf_456');
+});
+
 test('getStockNews receiving HTTP 403 or 401 from third party does not wipe Tijori session', async () => {
   const mockFetch = async () => {
     return new Response('Forbidden', { status: 403, statusText: 'Forbidden' });

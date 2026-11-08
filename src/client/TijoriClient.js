@@ -274,7 +274,8 @@ export class TijoriClient {
       'Accept': 'application/json, text/html, */*',
     };
 
-    const isTijoriHost = !fullUrl.startsWith('http') || new URL(fullUrl).hostname.endsWith('tijorifinance.com');
+    const hostname = fullUrl.startsWith('http') ? new URL(fullUrl).hostname : '';
+    const isTijoriHost = !fullUrl.startsWith('http') || hostname === 'tijorifinance.com' || hostname.endsWith('.tijorifinance.com');
 
     if (isTijoriHost) {
       defaultHeaders['Referer'] = `${this.baseUrl}/`;
@@ -2035,8 +2036,8 @@ export class TijoriClient {
       peg_summary: null,
     };
 
+    const scriptEl = $('#company_details_data');
     try {
-      const scriptEl = $('#company_details_data');
       if (scriptEl.length) {
         const data = JSON.parse(scriptEl.html());
         if (data.memory_overview?.key_events && Array.isArray(data.memory_overview.key_events)) {
@@ -2056,7 +2057,7 @@ export class TijoriClient {
       }
     } catch (_) {}
 
-    if (keyEvents.length === 0) {
+    if (!scriptEl.length) {
       $('script').each((_, el) => {
         const text = $(el).html() || '';
         if (text.includes('key_events')) {
@@ -2208,7 +2209,7 @@ export class TijoriClient {
       } catch (_) {}
     }
 
-    if (dividends.length === 0 && splits.length === 0 && bonuses.length === 0) {
+    if (!scriptEl.length) {
       $('script').each((_, el) => {
         const text = $(el).html() || '';
         if (text.includes('Dividend') && (text.includes('Bonus') || text.includes('Split'))) {
@@ -2256,8 +2257,8 @@ export class TijoriClient {
     let relationalProducts = [];
     let industriesCatered = [];
 
+    const scriptEl = $('#company_details_data');
     try {
-      const scriptEl = $('#company_details_data');
       if (scriptEl.length) {
         const data = JSON.parse(scriptEl.html());
         if (data.sector) industriesCatered.push(data.sector);
