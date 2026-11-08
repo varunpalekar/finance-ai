@@ -10,17 +10,105 @@ const OUTPUT_DIR = join(ROOT_DIR, 'output');
 const SESSION_PATH = process.env.PPLX_SESSION_PATH || join(OUTPUT_DIR, 'perplexity_session.json');
 const SIGNIN_URL = 'https://www.perplexity.ai/api/auth/signin';
 
+function printUserBanner(user) {
+  const displayName = user?.name || user?.username || user?.email;
+  console.error('\n┌──────────────────────────────────────────────────────────┐');
+  console.error('│  Perplexity Authentication Success                       │');
+  if (displayName) {
+    console.error(`│  User:      ${displayName.padEnd(45)}│`);
+  }
+  if (user?.email && user.email !== displayName) {
+    console.error(`│  Email:     ${user.email.padEnd(45)}│`);
+  }
+  if (user?.username && user.username !== displayName) {
+    console.error(`│  Username:  ${user.username.padEnd(45)}│`);
+  }
+  if (user?.subscription_status) {
+    console.error(`│  Plan:      ${user.subscription_status.toUpperCase().padEnd(45)}│`);
+  }
+  console.error('└──────────────────────────────────────────────────────────┘\n');
+}
+
+export async function saveManualToken(client, tokenVal, targetPath = client?.sessionPath || SESSION_PATH) {
+  mkdirSync(dirname(targetPath), { recursive: true });
+  const cleanToken = tokenVal.replace(/^__Secure-next-auth\.session-token=/, '').split(';')[0].trim();
+  const sessionData = {
+    updated_at: new Date().toISOString(),
+    cookies: [
+      {
+        name: '__Secure-next-auth.session-token',
+        value: cleanToken,
+        domain: '.perplexity.ai',
+        path: '/',
+        secure: true,
+        httpOnly: true
+      }
+    ]
+  };
+
+  writeFileSync(targetPath, JSON.stringify(sessionData, null, 2));
+  chmodSync(targetPath, 0o600);
+  console.error(`\n✅ Session token saved to ${targetPath}`);
+
+  const verify = await client.validateSession({ probe: false });
+  if (verify.valid) {
+    const user = await client.getUserInfo({ fresh: true }).catch(() => null);
+    if (user?.is_authenticated) {
+      printUserBanner(user);
+    } else {
+      console.error('✅ Session token verified.');
+    }
+    return { success: true, user };
+  } else {
+    console.error(`⚠️ Session saved but validation returned: ${verify.reason}`);
+    return { success: false, reason: verify.reason };
+  }
+}
+
+async function launchBrowser() {
+  const baseArgs = [
+    '--disable-blink-features=AutomationControlled',
+    '--no-sandbox',
+    '--disable-infobars'
+  ];
+  const ignoreDefaultArgs = ['--enable-automation'];
+
+  try {
+    return await chromium.launch({
+      channel: 'chrome',
+      headless: false,
+      args: baseArgs,
+      ignoreDefaultArgs
+    });
+  } catch (_) {
+    return await chromium.launch({
+      headless: false,
+      args: baseArgs,
+      ignoreDefaultArgs
+    });
+  }
+}
+
 export async function interactiveLogin(client) {
   mkdirSync(OUTPUT_DIR, { recursive: true });
 
   console.error('\n┌──────────────────────────────────────────────────────────┐');
   console.error('│  Opening browser for Perplexity Finance sign-in...        │');
-  console.error('│  Log in via Google, Apple, or Email in the window.       │');
+  console.error('│  Log in via Email (Magic Link), Google, or Apple.        │');
+  console.error('│  💡 If Google blocks login ("browser not secure"):        │');
+  console.error('│     1. Click "Continue with Email" for 1-click magic link │');
+  console.error('│     2. Or paste token: npm run auth:pplx -- --token <val> │');
   console.error('│  Waiting up to 120 seconds for login completion...        │');
   console.error('└──────────────────────────────────────────────────────────┘\n');
 
-  const browser = await chromium.launch({ headless: false });
-  const context = await browser.newContext();
+  const browser = await launchBrowser();
+  const context = await browser.newContext({
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
+
   const page = await context.newPage();
 
   await page.goto(SIGNIN_URL, { waitUntil: 'domcontentloaded' });
@@ -73,8 +161,13 @@ export async function interactiveLogin(client) {
 
   const verify = await client.validateSession({ probe: true });
   if (verify.valid) {
-    console.error('✅ Session verified against Perplexity Finance endpoints.');
-    return { success: true };
+    const user = await client.getUserInfo({ fresh: true }).catch(() => null);
+    if (user?.is_authenticated) {
+      printUserBanner(user);
+    } else {
+      console.error('✅ Session verified against Perplexity Finance endpoints.');
+    }
+    return { success: true, user };
   } else {
     console.error(`⚠️ Session saved but probe returned: ${verify.reason}`);
     return { success: false, reason: verify.reason };
@@ -128,10 +221,24 @@ async function main() {
   const isDaemon = process.argv.includes('--daemon');
   const forceReauth = process.argv.includes('--reauth');
 
+  const tokenIdx = process.argv.findIndex(arg => arg === '--token' || arg === '-t');
+  if (tokenIdx !== -1 && process.argv[tokenIdx + 1]) {
+    const res = await saveManualToken(client, process.argv[tokenIdx + 1]);
+    if (!res.success) {
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
   if (isStatusOnly) {
     const status = await client.validateSession({ probe: true });
     if (status.valid) {
-      console.error(`✅ Perplexity session is VALID. (updated_at: ${status.updated_at || 'unknown'})`);
+      const user = await client.getUserInfo({ fresh: true }).catch(() => null);
+      if (user?.is_authenticated) {
+        printUserBanner(user);
+      } else {
+        console.error(`✅ Perplexity session is VALID. (updated_at: ${status.updated_at || 'unknown'})`);
+      }
       process.exit(0);
     } else {
       console.error(`❌ Perplexity session INVALID: ${status.reason}. Run 'npm run auth:pplx' to sign in.`);

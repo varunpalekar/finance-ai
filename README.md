@@ -287,12 +287,29 @@ A browser window opens — log in manually and you're back.
 Perplexity Finance endpoints can be accessed unauthenticated, but for heavy usage or full access:
 
 ```bash
-npm run auth:pplx     # Interactive headed login to capture Perplexity session token
+npm run auth:pplx     # Interactive headed login (Google, Email Magic Link, Apple)
 npm run status:pplx   # Verify Perplexity session validity
 npm run reauth:pplx   # Force clear and re-authenticate Perplexity
 npm run daemon:pplx   # Run background keep-alive daemon to monitor and refresh session
 npm run test:pplx     # Run live Perplexity test suite against real endpoints
 ```
+
+#### Direct Token Import (Fastest & 100% Reliable)
+If Google blocks OAuth sign-in in automated browsers (*"This browser or app may not be secure"*), you can import your existing session token directly without opening an automated browser:
+
+1. Open [perplexity.ai](https://www.perplexity.ai) in your regular browser (Chrome, Arc, Safari, Brave) where you are already signed in.
+2. Open DevTools (`Cmd + Option + I` on Mac or `F12` on Windows/Linux) → **Application** tab → **Cookies** → `https://www.perplexity.ai`.
+3. Copy the value of the cookie named **`__Secure-next-auth.session-token`**.
+4. Run:
+   ```bash
+   npm run auth:pplx -- --token "<PASTE_COPIED_TOKEN_HERE>"
+   ```
+5. The session is validated and stored in `output/perplexity_session.json` (`0o600`).
+
+#### Browser Anti-Detection & Fallbacks
+When running `npm run auth:pplx`:
+* The script automatically launches your system's installed Google Chrome with `--disable-blink-features=AutomationControlled` and masks `navigator.webdriver`.
+* If Google still blocks sign-in, click **"Continue with Email"** on Perplexity to receive a 1-click magic link, or use the direct token import above.
 
 ---
 

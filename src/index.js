@@ -491,7 +491,14 @@ async function main() {
 
   const pplxCheck = await pplxClient.validateSession({ probe: false });
   if (pplxCheck.valid) {
-    process.stderr.write(`[tijori-mcp] Perplexity session active.\n`);
+    pplxClient.getUserInfo().then(info => {
+      const user = info?.name || info?.username || info?.email;
+      const userStr = user ? ` as ${user}` : '';
+      const sub = info?.subscription_status ? ` (${info.subscription_status.toUpperCase()})` : '';
+      process.stderr.write(`[tijori-mcp] Perplexity connected — authenticated${userStr}${sub}.\n`);
+    }).catch(() => {
+      process.stderr.write(`[tijori-mcp] Perplexity session active.\n`);
+    });
   }
 
   const transport = new StdioServerTransport();

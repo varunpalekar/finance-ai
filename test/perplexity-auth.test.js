@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { PerplexityClient } from '../src/client/PerplexityClient.js';
-import { runDaemon } from '../scripts/auth-perplexity.js';
+import { runDaemon, saveManualToken } from '../scripts/auth-perplexity.js';
 
 describe('Perplexity Session Governance', () => {
   test('validateSession identifies missing session file', async () => {
@@ -105,5 +105,23 @@ describe('Perplexity Session Governance', () => {
 
     assert.equal(res.iterations, 1);
     assert.equal(reauthCalled, true, 'Daemon must trigger reauth callback on invalid session');
+  });
+
+  test('saveManualToken writes valid session file and strips cookie prefix', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pplx-save-token-'));
+    const sessionFile = path.join(tmpDir, 'perplexity_session.json');
+    const client = new PerplexityClient({ sessionPath: sessionFile });
+
+    const rawCookie = '__Secure-next-auth.session-token=manual_test_token_xyz; Path=/; Secure';
+    const res = await saveManualToken(client, rawCookie);
+
+    assert.equal(res.success, true);
+    assert.ok(fs.existsSync(sessionFile));
+    const data = JSON.parse(fs.readFileSync(sessionFile, 'utf8'));
+    assert.equal(data.cookies[0].name, '__Secure-next-auth.session-token');
+    assert.equal(data.cookies[0].value, 'manual_test_token_xyz');
+    assert.equal(data.cookies[0].domain, '.perplexity.ai');
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 });

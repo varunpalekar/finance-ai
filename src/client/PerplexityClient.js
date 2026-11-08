@@ -103,6 +103,41 @@ export class PerplexityClient {
     return { valid: true, updated_at: parsed.updated_at };
   }
 
+  async getUserInfo({ fresh = false } = {}) {
+    const cacheKey = 'pplx:user:profile_info';
+    if (!fresh) {
+      const cached = get(cacheKey, { allowStale: false });
+      if (cached) return cached;
+    }
+
+    try {
+      const res = await this._rawFetch(`${this.baseUrl}/api/auth/session`, {
+        headers: this._getHeaders()
+      });
+      if (!res.ok) {
+        return { is_authenticated: false, name: null, username: null, email: null };
+      }
+      const data = await res.json().catch(() => null);
+      if (!data?.user) {
+        return { is_authenticated: false, name: null, username: null, email: null };
+      }
+
+      const info = {
+        is_authenticated: true,
+        name: data.user.name || null,
+        username: data.user.username || null,
+        email: data.user.email || null,
+        subscription_status: data.user.subscription_status || 'free',
+        org_role: data.user.org_role || null
+      };
+
+      set(cacheKey, info, TTL.OVERVIEW, 'json');
+      return info;
+    } catch {
+      return { is_authenticated: false, name: null, username: null, email: null };
+    }
+  }
+
   _getHeaders() {
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',

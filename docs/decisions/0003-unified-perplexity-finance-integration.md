@@ -29,10 +29,11 @@ Perplexity Finance (`https://www.perplexity.ai/finance`) exposes non-statutory o
    All 5 tools accept either `{ ticker?: string, slug?: string }`. If `slug` is provided without `ticker`, `resolveTicker()` queries Tijori's `resolveCompanyIds(slug)` to resolve the stock symbol and normalizes it to Yahoo/Perplexity symbology (`HEROMOTOCO.NS`), ensuring zero friction for calling agents.
 
 5. **Session Governance & Interactive Sign-in**:
-   - Headed Chromium interactive login script (`scripts/auth-perplexity.js`) waiting up to 120s for `__Secure-next-auth.session-token`.
+   - Interactive login script (`scripts/auth-perplexity.js`) with anti-detection flags (`channel: 'chrome'`, `--disable-blink-features=AutomationControlled`, masked `navigator.webdriver`).
+   - Direct manual session token injection via CLI flag (`--token <value>`) to completely bypass Google OAuth automated browser blocks.
    - Session tokens saved to `output/perplexity_session.json` (`0o600`).
    - Dynamic disk reload without server restart on session file update.
-   - CLI commands: `npm run auth:pplx`, `npm run reauth:pplx`, `npm run status:pplx`.
+   - CLI commands: `npm run auth:pplx`, `npm run auth:pplx -- --token <val>`, `npm run reauth:pplx`, `npm run status:pplx`, `npm run daemon:pplx`.
 
 6. **Grounding in Real Live Fixtures & Test Coverage**:
    - Authentic payloads captured from `HEROMOTOCO.NS` into `test/fixtures/perplexity/`.

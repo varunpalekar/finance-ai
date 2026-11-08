@@ -120,6 +120,40 @@ describe('PerplexityClient Core', () => {
     assert.ok(queried.some(u => u.includes('/CRM.NS')), 'Must query auto-suffixed .NS first');
     assert.ok(queried.some(u => u.includes('/quote/CRM')), 'Must fall back to bare US ticker');
   });
+
+  test('getUserInfo extracts authenticated profile data or returns unauthenticated fallback', async () => {
+    const client = new PerplexityClient();
+    client._rawFetch = async (url) => {
+      if (url.includes('/api/auth/session')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            user: {
+              name: 'Varun Palekar',
+              username: 'varunpalekar',
+              email: 'varun@example.com',
+              subscription_status: 'pro'
+            }
+          })
+        };
+      }
+      throw new Error('Unexpected url: ' + url);
+    };
+
+    const info = await client.getUserInfo();
+    assert.equal(info.is_authenticated, true);
+    assert.equal(info.name, 'Varun Palekar');
+    assert.equal(info.username, 'varunpalekar');
+    assert.equal(info.email, 'varun@example.com');
+    assert.equal(info.subscription_status, 'pro');
+
+    const unauthClient = new PerplexityClient();
+    unauthClient._rawFetch = async () => ({ ok: false, status: 401 });
+    const unauthInfo = await unauthClient.getUserInfo({ fresh: true });
+    assert.equal(unauthInfo.is_authenticated, false);
+    assert.equal(unauthInfo.name, null);
+  });
 });
 
 describe('PerplexityClient High-Level Methods', () => {
