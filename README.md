@@ -290,6 +290,7 @@ Perplexity Finance endpoints can be accessed unauthenticated, but for heavy usag
 npm run auth:pplx     # Interactive headed login to capture Perplexity session token
 npm run status:pplx   # Verify Perplexity session validity
 npm run reauth:pplx   # Force clear and re-authenticate Perplexity
+npm run daemon:pplx   # Run background keep-alive daemon to monitor and refresh session
 npm run test:pplx     # Run live Perplexity test suite against real endpoints
 ```
 

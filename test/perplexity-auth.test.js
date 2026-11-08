@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { PerplexityClient } from '../src/client/PerplexityClient.js';
+import { runDaemon } from '../scripts/auth-perplexity.js';
 
 describe('Perplexity Session Governance', () => {
   test('validateSession identifies missing session file', async () => {
@@ -86,5 +87,23 @@ describe('Perplexity Session Governance', () => {
     assert.equal(cookieHeader.includes('google_secret_token'), false, 'Must not leak Google cookies');
     assert.equal(cookieHeader.includes('state_123'), false, 'Must not leak Google OAuth cookies');
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('runDaemon triggers reauth when session probe reports invalid', async () => {
+    let reauthCalled = false;
+    const client = {
+      validateSession: async () => ({ valid: false, reason: 'NOT_AUTHENTICATED' })
+    };
+
+    const res = await runDaemon(client, {
+      intervalMs: 10,
+      maxIterations: 1,
+      onAuthRequired: async () => {
+        reauthCalled = true;
+      }
+    });
+
+    assert.equal(res.iterations, 1);
+    assert.equal(reauthCalled, true, 'Daemon must trigger reauth callback on invalid session');
   });
 });

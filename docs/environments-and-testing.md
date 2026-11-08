@@ -25,5 +25,5 @@ Status tracking for prerequisites, local execution environments, test suites, an
 | **Tijori Live Integration Suite** | `npm run test:live` | Verified | 28 live tests pass in 8.8s across all 28 Tijori MCP tools with real data assertions on `tata-steel-limited`, `swaraj-engines-limited`, `bank-of-maharashtra`, and Google News RSS |
 | **Perplexity Live Integration Suite** | `npm run test:pplx` | Verified | 5 live tests pass in 3.1s across all 5 Perplexity tools asserting on authentic `HEROMOTOCO.NS` live data |
 | **Tijori Auth & Cookie Capture** | `npm run auth` / `npm run reauth` | Verified | Launches headed Playwright to capture Tijori login session with mode 0600 |
-| **Perplexity Auth & Cookie Capture** | `npm run auth:pplx` / `npm run reauth:pplx` / `npm run status:pplx` | Verified | Launches headed Playwright to capture Perplexity login session or probes status |
+| **Perplexity Auth & Cookie Capture** | `npm run auth:pplx` / `npm run reauth:pplx` / `npm run status:pplx` / `npm run daemon:pplx` | Verified | Launches headed Playwright to capture Perplexity login session, monitors keep-alive daemon, or probes status |
 | **Perplexity Live Fixture Capture** | `npm run record:pplx [TICKER]` | Verified | Records authentic REST payloads from live Perplexity Finance endpoints into `test/fixtures/perplexity/` |

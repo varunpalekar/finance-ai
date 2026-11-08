@@ -18,6 +18,7 @@
     "auth:pplx": "node scripts/auth-perplexity.js",
     "reauth:pplx": "node scripts/auth-perplexity.js --reauth",
     "status:pplx": "node scripts/auth-perplexity.js --status",
+    "daemon:pplx": "node scripts/auth-perplexity.js --daemon",
     "record:pplx": "node scripts/record-perplexity-fixtures.js",
     "start": "node src/index.js",
     "test": "node --test test/*.test.js",

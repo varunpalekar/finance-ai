@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { existsSync, mkdirSync, writeFileSync, chmodSync, readFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, chmodSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PerplexityClient } from '../src/client/PerplexityClient.js';
@@ -9,36 +9,8 @@ const ROOT_DIR = join(__dirname, '..');
 const OUTPUT_DIR = join(ROOT_DIR, 'output');
 const SESSION_PATH = process.env.PPLX_SESSION_PATH || join(OUTPUT_DIR, 'perplexity_session.json');
 const SIGNIN_URL = 'https://www.perplexity.ai/api/auth/signin';
-const PROBE_URL = 'https://www.perplexity.ai/rest/finance/quote/HEROMOTOCO.NS';
 
-const IS_STATUS_ONLY = process.argv.includes('--status');
-const FORCE_REAUTH = process.argv.includes('--reauth');
-
-async function main() {
-  const client = new PerplexityClient({ sessionPath: SESSION_PATH });
-
-  if (IS_STATUS_ONLY) {
-    const status = await client.validateSession({ probe: true });
-    if (status.valid) {
-      console.error(`✅ Perplexity session is VALID. (updated_at: ${status.updated_at || 'unknown'})`);
-      process.exit(0);
-    } else {
-      console.error(`❌ Perplexity session INVALID: ${status.reason}. Run 'npm run auth:pplx' to sign in.`);
-      process.exit(1);
-    }
-  }
-
-  if (FORCE_REAUTH && existsSync(SESSION_PATH)) {
-    console.error('Clearing existing session for fresh re-authentication...');
-    try { unlinkSync(SESSION_PATH); } catch (_) {}
-  } else if (existsSync(SESSION_PATH)) {
-    const check = await client.validateSession({ probe: true });
-    if (check.valid) {
-      console.error(`✅ Active Perplexity session already exists and is valid. Use 'npm run reauth:pplx' to force re-sign in.`);
-      process.exit(0);
-    }
-  }
-
+export async function interactiveLogin(client) {
   mkdirSync(OUTPUT_DIR, { recursive: true });
 
   console.error('\n┌──────────────────────────────────────────────────────────┐');
@@ -76,7 +48,7 @@ async function main() {
   if (!sessionToken) {
     await browser.close();
     console.error('\n❌ Timed out — sign-in was not completed within 120 seconds.');
-    process.exit(1);
+    return { success: false, reason: 'TIMEOUT' };
   }
 
   const sessionData = {
@@ -99,16 +71,99 @@ async function main() {
 
   console.error(`\n✅ Perplexity session captured and saved to ${SESSION_PATH}`);
 
-  // Validate captured session with live probe
   const verify = await client.validateSession({ probe: true });
   if (verify.valid) {
     console.error('✅ Session verified against Perplexity Finance endpoints.');
+    return { success: true };
   } else {
     console.error(`⚠️ Session saved but probe returned: ${verify.reason}`);
+    return { success: false, reason: verify.reason };
   }
 }
 
-main().catch(err => {
-  console.error('Auth error:', err);
-  process.exit(1);
-});
+export async function runDaemon(client, options = {}) {
+  const intervalMs = options.intervalMs || 30 * 60 * 1000; // 30 minutes
+  const maxIterations = options.maxIterations || Infinity;
+  let iterations = 0;
+  let isRunning = true;
+
+  console.error(`[pplx-daemon] Starting session keep-alive daemon (probe interval: ${Math.round(intervalMs / 1000)}s)...`);
+
+  const cleanup = () => {
+    if (isRunning) {
+      isRunning = false;
+      console.error('\n[pplx-daemon] Stopping session keep-alive daemon.');
+    }
+  };
+
+  process.once('SIGINT', cleanup);
+  process.once('SIGTERM', cleanup);
+
+  while (isRunning && iterations < maxIterations) {
+    iterations++;
+    const status = await client.validateSession({ probe: true });
+    const nowIso = new Date().toISOString();
+
+    if (status.valid) {
+      console.error(`[pplx-daemon] [${nowIso}] Session active and valid.`);
+    } else {
+      console.error(`[pplx-daemon] [${nowIso}] ⚠️ Session invalid/expired (${status.reason}). Triggering re-authentication...`);
+      if (options.onAuthRequired) {
+        await options.onAuthRequired(client);
+      } else {
+        await interactiveLogin(client);
+      }
+    }
+
+    if (!isRunning || iterations >= maxIterations) break;
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+
+  return { iterations };
+}
+
+async function main() {
+  const client = new PerplexityClient({ sessionPath: SESSION_PATH });
+  const isStatusOnly = process.argv.includes('--status');
+  const isDaemon = process.argv.includes('--daemon');
+  const forceReauth = process.argv.includes('--reauth');
+
+  if (isStatusOnly) {
+    const status = await client.validateSession({ probe: true });
+    if (status.valid) {
+      console.error(`✅ Perplexity session is VALID. (updated_at: ${status.updated_at || 'unknown'})`);
+      process.exit(0);
+    } else {
+      console.error(`❌ Perplexity session INVALID: ${status.reason}. Run 'npm run auth:pplx' to sign in.`);
+      process.exit(1);
+    }
+  }
+
+  if (isDaemon) {
+    await runDaemon(client);
+    process.exit(0);
+  }
+
+  if (forceReauth && existsSync(SESSION_PATH)) {
+    console.error('Clearing existing session for fresh re-authentication...');
+    try { unlinkSync(SESSION_PATH); } catch (_) {}
+  } else if (existsSync(SESSION_PATH)) {
+    const check = await client.validateSession({ probe: true });
+    if (check.valid) {
+      console.error(`✅ Active Perplexity session already exists and is valid. Use 'npm run reauth:pplx' to force re-sign in.`);
+      process.exit(0);
+    }
+  }
+
+  const res = await interactiveLogin(client);
+  if (!res.success) {
+    process.exit(1);
+  }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch(err => {
+    console.error('Auth error:', err);
+    process.exit(1);
+  });
+}
