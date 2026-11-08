@@ -1,0 +1,1102 @@
+{
+  "date": "2026-10-29T05:00:00.000Z",
+  "wentLiveAt": "2026-10-29T04:57:40.000Z",
+  "status": "final",
+  "audio": "https://files.quartr.com/audio-files/01a18645-ee95-75fe-b8c2-d857ce6cc3e8/master.m3u8?ref=UGVycGxleGl0eSBBSQ==",
+  "paragraphs": [
+    {
+      "time": 0.24,
+      "text": "Ladies and gentlemen, good day and welcome to Hero MotoCorp Limited Q2 FY 2027 earnings conference call, hosted by PhillipCapital India Private Limited. As a reminder, all participant lines will be in the listen-only mode, and there will be an opportunity for you to ask questions after the presentation concludes. Should you need assistance during the conference call, please signal an operator by pressing star then zero on your touch-tone phone. Please note that this conference is now being recorded. I now hand the conference over to Mr. Amit Hiranandani from the PhillipCapital India Private Limited. Thank you, and over to you, sir.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 38.3,
+      "text": "Thank you, and good morning, everyone. Welcome to the Q2 FY 2027 post-results conference call of Hero MotoCorp. I would like to thank the management team of Hero MotoCorp for giving us the opportunity to host this call. I will now hand over the call to Mr. Nitin Vaid, who recently joined as Head of Investor Relations teams of Hero MotoCorp, to take this forward. Over to you, Nitin.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 64.12,
+      "text": "Thank you, Amit. It is an absolute pleasure to be hosting my first earnings call for Hero. Good morning, everyone, and welcome to the second quarter fiscal year ended March 31, 2027 earnings call. We put out a press release and an earnings presentation announcing the results yesterday. A copy of the press release and the earnings presentation is now available in the investor relations section of our website. With us on the call today are Mr. Harshavardhan Chitale, our CEO, Mr. Vivek Anand, our CFO, Mr. Ashutosh Varma, Chief Business Officer, India Business Unit, Ms. Kausalya Nandakumar, Chief Business Officer, Emerging Mobility Business Unit, and Mr. Anuj Dua, Chief Business Officer, Premium Business Unit. Please note that our safe harbor statements are contained within our presentation and other materials available on our website. These statements are important and integral to all our remarks.",
+      "speakers": [
+        "Nitin Vaid"
+      ]
+    },
+    {
+      "time": 115.3,
+      "text": "We will begin the call with opening remarks from Harsh and Vivek, followed by a Q&A session. With that, let me hand over to Harsh.",
+      "speakers": [
+        "Nitin Vaid"
+      ]
+    },
+    {
+      "time": 123.78,
+      "text": "Thank you, Nitin, and welcome to Hero MotoCorp. Good morning, everyone, and welcome to this earnings call. Before I begin with our prepared remarks on our business and financial highlights, I would like to wish you all and your families a very happy and prosperous Diwali in advance. To those of you who are also celebrating Karva Chauth, best wishes on Karva Chauth. We ended H1 FY 2027 with a strong revenue growth of 28% and profit after tax growth of 16% year-over-year. Vivek will deep dive further into our financial performance for Q2 as well as H1, both standalone as well as consolidated in detail. Let's begin with what we see happen in the industry as a whole. Q2 was another strong quarter for the two-wheeler industry, with Vahan retails growing by over 27%. ICE grew 23% and EV at 82%.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 186.18,
+      "text": "Growth continued to be broad-based, and since this question gets asked often and it's very topical right now, we see growth both in urban and rural markets. When I look at HMCL performance, actually, our rural performance is equal or better than the urban performance last quarter as well as in this quarter to date. For H1 FY 2027, this industry growth translated also into strong retail growth of over 20% year-over-year. For those of you who want to understand the impact of pent-up demand of GST, what was the impact of that. To take that impact away, we also looked at what was the growth over a two-year period. Over a two-year period, it was 11% CAGR, which shows that industry as a whole has a healthy growth momentum, even after discounting the impact of a pent-up demand.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 241.84,
+      "text": "With the festive season underway, we do see demand fundamentals continue to hold up, and we expect the industry as a whole to deliver mid to high single-digit growth during the festival period, and we are seeing that already in the festival to date performance. Let's now move to Hero MotoCorp's operational performance. We continue to execute on our key pillars of our business strategy of expanding market share in fast-growing segments of the two-wheeler industry. I am happy to report that with that execution, we gained Vahan market share in our ICE portfolio every month of the last quarter. So in all the three months, every month, we gained Vahan share. Our ICE retails outpaced industry growth, recording a strong growth of 24% year-on-year during the quarter. Now let me highlight some key drivers behind this performance.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 298.28,
+      "text": "Scooter was a big contributor of this growth, and scooter portfolio continued to gain traction with the fifth quarter of year-over-year expansion in our market share. In some of the key markets of south, for example, which is a big scooter market, our ICE scooter market share has now crossed 10% level, and we are scaling our products to other regions rapidly. Our ICE scooter dispatches have grown 34% year-on-year in quarter 2, and for the full half year, the dispatch growth has been in excess of 50%. If you look at how the business mix of scooters has grown over the last two years, for the corresponding quarters, when you compare them, our scooters as a mix has now increased by 3 percentage points in our entire business mix.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 349.72,
+      "text": "Moving to 100 cc motorcycles, and this is also a question we get quite often, that you have a large exposure as a company to this category. How is this category doing? Is it underperforming versus the rest? In Q2, we see 10% growth in 100 cc as a whole, and in H1, we have seen 11% growth. So this category also continues to expand and contribute to our business performance. Splendor has grown at over 20%, and what is also interesting to note is Splendor's XTEC variant, which is the premium variant of Splendor, now contributes to over 25% of Splendor volumes. Moving to our EV portfolio. Retails in our VIDA grew by 105% year-on-year, and now we have gained 170 basis points market share in H1 of FY 2027.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 408.72,
+      "text": "Earlier this fiscal, we had launched new variants of our VIDA, the VX2 Go 3.1 kWh and VX2 Plus 4.4 kWh, and both of these products are bringing new set of customers in our dealerships. We have also expanded our capacity to 30,000 units per month in September. Just to remind everyone, we were at 15,000 units a month at the end of last fiscal. So we have already doubled the capacity, and we are well on our way to take it to 45,000 units a month in Q4. Looking at the demand that we see, we have already started further expansion as well, which will take our capacity to over 80,000 units a month by Q2 of next financial year. Our dealer inventory continues to be low.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 457.82,
+      "text": "We are working with a dealer stock of just about one day, which shows that actually we are still capacity constrained, and there is a strong demand for our product even during this festival period. Let's move to parts business. Our parts business recorded a revenue growth of 27% year-on-year during this quarter. So this is the second quarter in a row where we see growth in excess of 25%. As you all know, this is a big contributor of our profitability. Growth was driven by increasing volumes in our EV portfolio for parts, Harley-Davidson portfolio for parts as well as accessories, as well as parts and accessories performance also in our exports. Looking at this growth momentum in our parts and accessories business, we announced the greenfield expansion of our GPC 2.0 to cater to parts availability for both Indian and global markets.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 517.78,
+      "text": "We are investing over INR 700 crore in setting up a complete new automated parts center and double our parts handling capacity from what it is right now. Moving to global business. This is one business where we did face some logistical challenges in some of our key markets. We have a very high exposure to one of the Latin American country, which unfortunately faced a devastating earthquake this quarter. We did have issues in dispatches and customs clearance in that market. We also saw a demand slowdown in Bangladesh with sharp increase in fuel price due to the Gulf War that's ongoing. Both of them did impact our dispatch or our wholesale growth in exports. However, we are enthused by the fact that our retails have grown by 19% during this period. So the retail momentum is strong.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 571.62,
+      "text": "It's the logistic challenges that came in our way of dispatch growth. However, we are confident to move back to dispatch growth or a wholesale growth even in our exports in Q3. Moving to our premium portfolio. As you all know, we carved out a premium business unit in Q2, and we announced a new Chief Business Officer for this business unit, who's also on this call and could answer some of the questions later in the Q&A. Under the new organizational setup, we've recently launched two key product refreshes in October, Xtreme 160R and Xtreme 250R. Both of these motorcycles are the fastest in their respective segments and come with a host of segment-first features.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 618.32,
+      "text": "Our XPulse franchise within this portfolio continues its strong growth trajectory, recording over 30% retail growth in the first half FY 2027, and market share of over 35% in the adventure bike segment. We will continue to address the white spaces in our premium portfolio through further launches, and you can look for three to four key launches in the remaining parts of this financial year in our premium segment. In summary, overall, we are encouraged by the results that we are seeing and the performance across our various strategic initiatives and our focus on fast-tracking execution across each growth vertical. We will continue to invest in new products behind our key brands and in capacity expansion. With that, I will hand over to Vivek to walk us through our margin performance, cash flow performance, and so on. Vivek, over to you.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 677.22,
+      "text": "Thank you, Harsh. Good morning, everyone, and thanks for joining our Q2 financial year 2027 earnings call. Let me start by extending festive greetings to all of you and your families. I trust all have reviewed our financial statements and the investor presentation. Let me walk you through the financial performance for the quarter. Starting with financial highlights. Our headline number for Q2 reflects strong top-line performance with revenue from operations at INR 14,687 crore, up 21% year-on-year. EBITDA grew 8% year-on-year to INR 1,968 crore, while profit after tax stood at INR 1,456 crore, up 5% year-on-year. Total wholesale volume expanded by 10.5% year-on-year, driven by an 8.4% growth in our ICE business and a robust 98% growth in EV business. This strong wholesale growth reflects strength in the underlying demand trends across both urban and rural markets as we prepare for the ongoing festive season.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 741.99,
+      "text": "Revenue continued to outpace volume growth at 21% versus the 10.5% wholesale growth. This outperformance reflects portfolio premiumization, led by an increasing share of ICE and EV scooters and premium variants contributing a 5% positive mix impact, equally supported by calibrated pricing. Moving on to cash flow from operations in the quarter stood at INR 2,159 crore, nearby doubling over the prior comparable period, driven by optimization of working capital. Within working capital, I think we had record low receivables in the previous quarter. Moving to the consolidated results, revenue for the quarter increased by 23% year-on-year to INR 14,971 crore, and PAT grew by 41% year-on-year to INR 1,861 crore. Results for the quarter include an INR 397 crore one-time gain from the equity consolidation of an associate company following its capital raise via a QIP and private placement.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 819.71,
+      "text": "I'll move on to margins and cost management now. During quarter 2, the industry continued to face headwinds from broad-based commodity inflation. As you know, it was across steel, aluminum, plastic, rubber, and freight, which was further amplified by currency depreciation. To mitigate these cost headwinds, we continued on our four-point action plan. Firstly, as you can see in our presentation, our mix now has a higher share of premium variants, supported further by strong revenue growth in our parts, accessories, and merchandise business. Secondly, we accelerated savings under our LEAP program, continued to curtail discretionary spending and drive operating leverage. Thirdly, judicious pricing across select models in select markets. Finally, we worked aggressively on improving the unit economics of our VIDA portfolio, and I'm happy to report that our VIDA business turned gross margin positive in the quarter. This was achieved ahead of our earlier guidance.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 886.21,
+      "text": "At an aggregate level, while gross margin compressed by 30 basis points quarter-on-quarter, strict overhead control and operating leverage drove a 10 basis points quarter-on-quarter expansion in EBITDA margins to 13.4%. I'll briefly just talk about the EMBU business now. Our VIDA business maintained strong operational momentum, with retail volumes rising 74% year-on-year to 66,000 units in the quarter. This was supported by our monthly production ramp-up to 30,000 units in September and portfolio diversifications across broader price points. VIDA business continued to improve on unit economics, resulting in business becoming gross margin positive during the quarter. This led to INR 70 crore optimization of spends over the previous quarter.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 940.13,
+      "text": "This was again possible through series of initiatives, structured BOM cost optimization, healthier margin across our new product launches, acceleration of non-vehicle and software revenue streams, judicious price increase across the portfolio, and PLI accruals amounting to INR 63 crore recognized during the quarter. Approximately 70% of our EV portfolio got PLI in the quarter, and I'm happy to report that we have already received PLI certification for nearly 100% of our portfolio in October 2026. I'll move on to CapEx now. Turning to capital expenditure, we remain on track with our full-year guidance of INR 1,500 crore. In half 1, we've already deployed close to INR 600 crore towards our key projects. We've already expanded our capacity in Splendor and have doubled our ICE scooter capacity to 80,000 units per month.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 995.27,
+      "text": "Our EV capacity has also been increased to a run rate of 30,000 per month, and we are actively working to scale our production further to 45,000 by quarter 4. We've also expanded the dedicated premium assembly line at our Neemrana facility. We are advancing the phase 2 expansion of our Global Parts Centre 2.0 at Tirupati and expect the GPC 2.0 to be fully operational by end of next calendar year. Looking ahead to quarter 3, financial year 2027, due to extended West Asia conflict and sustained commodity price inflation, we expect input cost inflation pressure to persist. However, we will neutralize these through continued cost rationalization, accelerated LEAP savings program, aggressive improvement in VIDA unit economics, and judicious price actions. Backed by these measures, we expect margins in quarter 3 to remain stable.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 1051.13,
+      "text": "Over the medium term, our primary focus remains driving EBITDA growth while steadily progressing towards our target EBITDA margins corridor of 14%-16%. Going forward, our journey of investment behind growth will continue, both in terms of capacity expansion and brand building to support our premium scooter, EV, and global business portfolio. Thank you once again for your time and continued support. On that note, let me open the floor for Q&A. Over to you, Nitin. Thank you.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 1080.81,
+      "text": "Thank you, Vivek. Anam, you may now open the floor for questions.",
+      "speakers": [
+        "Nitin Vaid"
+      ]
+    },
+    {
+      "time": 1085.79,
+      "text": "Thank you very much. We will now begin the question and answer session. Anyone who wishes to ask a question may press star and one on the touchtone telephone. If you wish to remove yourself from the question queue, you may press star and two. Participants are requested to use handsets while asking a question. Ladies and gentlemen, we will wait for a moment while the question queue assembles. The first question comes from the line of Amyn Pirani from JPMorgan. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 1119.24,
+      "text": "Yes. Hi. Good morning, and thanks for the opportunity. Actually, my first question was on exports. Like you rightly mentioned, you had some challenges in some markets. Because unlike your peers, at least at this stage, your export distribution is more concentrated towards specific regions. Can you help us understand broadly how the major markets or regions contribute? Like, how big is, say, a Colombia or how big is Sri Lanka, Bangladesh? I am just asking because it will help us get context, because right now, given your distribution, one or two markets having challenges can impact your volumes, which does not happen with your peers. At the same time, when those markets normalize, the recovery can also be equally sharp. So some context there could be very helpful.",
+      "speakers": [
+        "Amyn Pirani"
+      ]
+    },
+    {
+      "time": 1170.38,
+      "text": "No, I think great question, Amyn. We have in Colombia specifically, close to 25% of our exports business, so very high exposure, and so is in Bangladesh. In both of them, we are also very strong in terms of market share. So strong contribution to our exports with strong performance or share in those markets.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1195.22,
+      "text": "Now, when those two happen to, in the same quarter, face some challenges, we were not able to compensate that with rest of the 50%.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1205.36,
+      "text": "We have been announcing expansions into different other countries, but we are yet to scale them up to have good distribution and less portfolio concentration in exports. But the good news is we are already seeing recovery-",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1220.34,
+      "text": "by the end of the quarter in both Colombia and Bangladesh, and we continue to also expand our presence in the other markets where we went.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1229.18,
+      "text": "Great. That's very helpful. A follow-up on that would be, can you give us a broad timeline as to by when we could have a slightly more balanced distribution? Which are the two or three markets which could become very important, say, apart from these existing markets, which could become very important over the next, say, 12-18 months?",
+      "speakers": [
+        "Amyn Pirani"
+      ]
+    },
+    {
+      "time": 1253.24,
+      "text": "Yeah. No, so great question. We are looking at expanding in Brazil. In fact, as we had shared earlier, we are also setting up a manufacturing facility in Brazil, and we also have a good portfolio of flex fuel vehicles, which is what is needed for that market. So that's a big market we are expanding in. We are also increasing our presence in Mexico. So both these are large Latin American markets when it comes to two-wheelers. We are also expanding through some new launches and new country openings in Africa. That's a big market for some of the other peer companies, and we are extremely underrepresented in Africa. So we would be expanding there, starting in fact with launches this month. So Africa will be another territory of expansion.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1303.1,
+      "text": "Great. If I can just slip in one last question. On the domestic 125 cc portfolio, I think market share has improved, but it's still been a slow recovery the way we see it. Your 100 cc has done very well, but 125 cc is also going to see a lot more introductions. Any context there, for example, how is the Xtreme doing? How should we expect the 125 cc market share to look going forward?",
+      "speakers": [
+        "Amyn Pirani"
+      ]
+    },
+    {
+      "time": 1335.46,
+      "text": "No, I think I'll first give some comments and then hand over to Ashu, our Chief Business Officer for India business. So at H1 as a whole, we've grown 19% in 125 cc, and as you rightly pointed out, we've gained significant market share. But that category as a whole has not grown or done that well relative to some other categories. 100 cc, some of the customers with the inflation increases in prices, plus also more focus on fuel economics, fuel efficiency. We see some of them moving to 100 cc, and hence you saw strong momentum also in 100 cc. Some of them potentially are moving up with the GST impact being favorable to 150, 160 cc. So probably some of that has impacted that category, but as you saw, we still grew 19% in H1 and gained share there.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1392.84,
+      "text": "Now, within that for our different brands, Ashu, do you want to give some color?",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1396.32,
+      "text": "Sure. Thanks, Harsh. Hi, Amyn. Overall, as Harsh shared, yes, we've had some significant market share gains, Amyn, in this category. From a brand perspective, Glamour with its new variants growing north of 50%, that's been really a big shot in the arm. We've just launched a new variant with ABS that is being very well accepted across markets. Xtreme, there are new variants as well, that we are just about to start. Hopefully, it should be in time for Dhanteras Diwali. And some of the new features that we introduced in Super Splendor. That has been really accepted well, especially in the geographies that Super Splendor does well, especially the rural markets. We've been moving consistently up, moved from what number 3 to now number 2 position in this space.",
+      "speakers": [
+        "Ashutosh Varma"
+      ]
+    },
+    {
+      "time": 1447.06,
+      "text": "We're very confident that with these new models, we will continue to gain share and become stronger.",
+      "speakers": [
+        "Ashutosh Varma"
+      ]
+    },
+    {
+      "time": 1455.2,
+      "text": "Thanks, Ashu. Thanks. Thanks, Harsh, for making the queue.",
+      "speakers": [
+        "Amyn Pirani"
+      ]
+    },
+    {
+      "time": 1459.56,
+      "text": "Thank you. The next question comes from the line of Gunjan Prithyani from Bank of America. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 1466.98,
+      "text": "Yeah. Hi, thanks for taking my questions. My first question, just to have some numbers on the P&L clarified. Can you share the EV revenues and the typical drag that you share at the EBITDA level, which has been at about INR 200 crore for the last couple of quarters. Can you give some sense on where we are on those numbers, revenue, and the drag? And also, Vivek, if you can give some context on what was the magnitude of commodity inflation we really saw in quarter 2.",
+      "speakers": [
+        "Gunjan Prithyani"
+      ]
+    },
+    {
+      "time": 1498.3,
+      "text": "Okay. Hi, Gunjan. Good morning to you. So your first question is on the EV drag you talked about. That's almost INR 168 crore in quarter 2, which is down from INR 232 crore in quarter 1. That's what in my opening statement I called out, that drag has actually come down by INR 70 crore quarter-on-quarter. So that's one. Secondly, the EV revenue during quarter 2 was INR 1,000 crore. So that's the second part. The third part of your question was that what is the material inflation we've seen. That's almost 1% quarter-on-quarter.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 1540.08,
+      "text": "Okay. And just to be sure, this INR 1,000 crore, so PLI that we're getting right now is 6% roughly, and only 70% of the portfolio qualifies for PLI. So as this revenue scales up, by the exit of fiscal 2027, we should be reaching close to what, 10% as a PLI contribution on the revenues? Is that the way to think about it? The portfolio also increases, and the rates will also go up. How do I think about the PLI?",
+      "speakers": [
+        "Gunjan Prithyani"
+      ]
+    },
+    {
+      "time": 1573.54,
+      "text": "You are right. This quarter, it is around INR 63 crore. That is almost 6.5% of our revenue for this quarter, and that is covering almost 70% of our portfolio. As I said earlier, we now have PLI certification for almost the entire portfolio. Starting quarter three, you will see almost 13% of our revenue translating into PLI benefits starting this quarter. As we scale up, the amount of benefit grows along with it.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 1603.8,
+      "text": "Okay, got it. That is helpful. My second question is on the scooter capacity. You did call out very clearly on the EV VIDA capacity. On the ICE side also, clearly the traction has been quite strong over the last couple of months, and in fact, the last month number was quite strong. Can you give us some sense on the variants that are doing well, where are we in terms of the channel stock on the ICE scooter side, and where do we see the capacity expansion and market share on ICE scooters specifically?",
+      "speakers": [
+        "Gunjan Prithyani"
+      ]
+    },
+    {
+      "time": 1640,
+      "text": "Yeah. I think we, in the first half of the year, did speak of significant expansion in ICE scooter capacity as well to support this growth. We had, in the first quarter, expanded capacity of Destini. Then in the second quarter, we expanded capacity of our other brand, Xoom, and both put together, actually, capacity expansion is nearly doubling on a year-on-year basis. That is how we are now close to 80,000 a month of that capacity. Both the brands, Destini and Xoom, have done very well, in line with what we expected when we went for that capacity expansion. Within that Xoom 160, which is the maxi scooter, let us say the SUV of the scooter portfolio, so to speak, actually is doing exceptionally well. There, our channel stock has been hovering around single digits. We are again further refining and boosting our capacity there.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1706.42,
+      "text": "Is there need to add more to the ICE scooter side? Are you seeing the demand, it is almost been doubled, but you are seeing there is more appetite and there is need to add more to the ICE scooter as well?",
+      "speakers": [
+        "Gunjan Prithyani"
+      ]
+    },
+    {
+      "time": 1720.96,
+      "text": "Clearly, Gunjan. Hi. Ashutosh here. Overall, we seem to be winning in the toughest battlegrounds, which are highly scooterized markets. The gain in market share so far this year, we have had almost what, 160 basis point market share increase. As Harsh said, several quarters of market share gain. Xoom 160 doing really well for us across India. Of course, we are ramping up capacities as we speak. Destini was the first one for the capacity to come, and that is something that we have been able to spread across the country. The new variant, Destini 110, doing really well in certain pockets, which are strong 110 cc metal body pockets. Overall, strong traction, and we feel that the growth that we have been having so far, which is north of 50%, that should continue as we move forward.",
+      "speakers": [
+        "Ashutosh Varma"
+      ]
+    },
+    {
+      "time": 1776.34,
+      "text": "On her question on further capacity expansion, Gunjan, you are right. On Xoom specifically, we are further planning to expand capacity because we have also taken that model now in our overseas markets, and it is seeing great traction in the markets outside India as well.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1794.44,
+      "text": "Got it. Thank you so much, and it is good to actually see the scooter business scaling up over the last couple of quarters. Thank you so much. I will join back with you.",
+      "speakers": [
+        "Gunjan Prithyani"
+      ]
+    },
+    {
+      "time": 1804.82,
+      "text": "Thank you. The next question comes from the line of Chandramouli from Goldman Sachs. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 1811.74,
+      "text": "Hi. Good morning, and thank you for taking my questions. First question is just a follow-up on exports. You mentioned there are logistical challenges and some single market issues that you had to cycle through during the quarter. But just as you look ahead into the back half, how is the shipping situation panning out on the logistics? Do you expect some of this lost wholesale volume to come back, just given that underlying retail volume in these markets is holding up?",
+      "speakers": [
+        "Chandramouli Muthiah"
+      ]
+    },
+    {
+      "time": 1842.15,
+      "text": "Yes, we do expect getting back to growth. In fact, expectation is to double-digit growth back in Q3 and Q4. The logistical challenges were not necessarily with availability of container capacity. It was more with port and clearances in the market, which was impacted with the earthquake. Now that operation is back to normal there. So we do see quick recovery there starting Q3.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1872.43,
+      "text": "Got it. That's helpful. Second question is just more of an industry question. We've seen mid-teens or high teens volume growth in two-wheeler industry in India for some of this fiscal. Just as you head into the back half, just want to understand what your thoughts are on what should be optimal growth for the industry, just considering that we are up against a slightly fair base because base is our sales, and how you're thinking about relative volume of the industry in the back half.",
+      "speakers": [
+        "Chandramouli Muthiah"
+      ]
+    },
+    {
+      "time": 1904.35,
+      "text": "Yeah. As we see today and are planning for the H2, we are looking at still mid to high single digit in H2. Even ICE will be in growth with low single digit, and EV will then take it to high single digits for the industry. As I see in the quarter, in the festival, which is a big period, we see that momentum continue.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 1931.43,
+      "text": "Got it. That's helpful. Just last question on the electric two-wheeler business. It's encouraging to see that for the past three to four months, there is a visible pickup in electric two-wheeler market share after the affordable electric two-wheeler launch. Just want to understand, there have been some comments from some of your peers that there might be some supply chain challenges on the electric business, given that there's been a spike in growth in the industry the last few months. Just want to understand how you're thinking about the supply chain situation as you plan for the growth on the electric business.",
+      "speakers": [
+        "Chandramouli Muthiah"
+      ]
+    },
+    {
+      "time": 1970.13,
+      "text": "Yeah. So right now the industry as a whole is definitely capacity constrained. There is far more demand. As and when anyone brings on capacity online, if the product is good, there is immediate bump up in share, as we saw, for example, in September and October. Right now, October month to date, actually our market share is hovering close to 13.5%-14%. So further jump because our additional capacity came online. So this capacity constraint for the entire industry definitely is a phenomenon. We are working to rapidly expand, working with our suppliers, key component suppliers, and that's how this 30,000 where we are, we see moving to 45,000 in matter of next few months.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2019.91,
+      "text": "Got it. That's helpful.",
+      "speakers": [
+        "Chandramouli Muthiah"
+      ]
+    },
+    {
+      "time": 2020.73,
+      "text": "To your other question of entry, et cetera, interestingly, while we entered also with a fixed battery pack, which was more competitive price point wise, we also introduced a very premium variant, a 4.4 kWh removable battery pack variant. Incidentally, that's the one that is doing the best. So there is a lot of demand right now for our premium. When I look at my business mix in EV, actually, my business mix is far more now premium, and that is also hence reflecting in the non-product revenue. If you looked at our investor deck on the website, actually, we are also rapidly expanding our software subscription revenue through a pack called VIDA Edge. There are also parts and accessories that are going with these premium e-scooters. So we are seeing a good growth in the non-product revenue also in VIDA right now.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2078.89,
+      "text": "Got it. That's helpful. Thank you very much, and all the best.",
+      "speakers": [
+        "Chandramouli Muthiah"
+      ]
+    },
+    {
+      "time": 2083.69,
+      "text": "Thank you.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2084.85,
+      "text": "Thank you. The next question comes from the line of Kapil Singh from Nomura. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 2090.61,
+      "text": "Yeah, good morning, sir. So first question was just on the financials. We see that there is a fairly strong revenue growth and volume growth for this quarter, but the other expenses have declined. If you could just talk us through how you've been able to realize these cost efficiencies and whether these are sustainable. When can we expect you to get back to the guided margin range of 14%-16%?",
+      "speakers": [
+        "Kapil Singh"
+      ]
+    },
+    {
+      "time": 2119.31,
+      "text": "Okay. Thank you, Kapil Singh. Good morning to you. The other expenses actually were largely because of the discretion expense cut we have taken during quarter 2. So there were budget cuts imposed to mitigate the impact of the material inflation. That was the first part of your question. Moving to when do we expect our margins to come in our guidance range. Let me start by just talking that the current phase of commodity continues to be volatile, as we all know. We all believe that will normalize. We are committed to progressing towards our medium-term EBITDA range of 14%-16%. As you know, we have a highly diversified business with an improving mix towards higher premium variants and fast-growing PAM business, which we briefly talked about.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 2178.47,
+      "text": "We will continue to improve unit economics of EV business, and I briefly talked about the progress we made in the previous quarter. We will continue to improve scale of global business. We will continue to accelerate LEAP savings, and we will continue to do calibrated pricing actions.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 2195.71,
+      "text": "Therefore, we expect to achieve our target range in the next few quarters as commodity cycle stabilizes and raw material inflation returns to normalized levels.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 2208.63,
+      "text": "Okay, sir. Thank you. The other question was on rural demand. Sir, you alluded to it briefly, but if you could, given the news flow we have heard on drought in south and also in Maharashtra, what are you observing in rural markets? Is there a risk to growth there? Just some color there would be helpful.",
+      "speakers": [
+        "Kapil Singh"
+      ]
+    },
+    {
+      "time": 2231.07,
+      "text": "Thanks, Kapil, for that question. I will reiterate what Harsh said. Rural demand is as good, if not better, as the urban demand we are seeing. In fact, some of the reasons that we think that has kind of manifested is possibly before the onset of festive and before the onset of monsoon, there were apprehensions of how El Niño will pan out. Fortunately, it hasn't been as bad as people thought it would be. Yes, there are certain parts of the country that are facing a drought situation. But if you look at, let's say, the overall sowing, it's almost there as it was last year. Rural that way seems to be holding up really well. There are certain geographies where it's holding up even better. As the rest of the festive manifests, we expect this to become even stronger, and help us overall. Yeah.",
+      "speakers": [
+        "Ashutosh Varma"
+      ]
+    },
+    {
+      "time": 2300.11,
+      "text": "Okay. Thank you, sir, and best wishes for the festive season to the entire team.",
+      "speakers": [
+        "Kapil Singh"
+      ]
+    },
+    {
+      "time": 2304.99,
+      "text": "Thank you.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2305.27,
+      "text": "Thank you.",
+      "speakers": [
+        "Ashutosh Varma"
+      ]
+    },
+    {
+      "time": 2305.55,
+      "text": "Thank you. The next question comes from the line of Pramod Kumar from UBS Securities. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 2313.11,
+      "text": "Yeah. Thanks a lot for the opportunity, sir. My first question is on the entire volume margin conundrum, because what we see or what we experienced over the last few years is that Hero has been losing market share because we are more indexed to the commuter motorcycle category and less to the more growing categories. You are doing a very good job, especially on EVs, I have to acknowledge the kind of market share gains what you have done. So kudos for that. If you can just help me understand, as you take a call over the next 2-3 years, the roadmap for the company, what is the priority, the market share or the margin? Given that scooterization and EVs is just accelerating more and more as per your own statement, looks like it will cover the expense of the commuter category.",
+      "speakers": [
+        "Pramod Kumar"
+      ]
+    },
+    {
+      "time": 2357.93,
+      "text": "In terms of percentage of the pie of the industry, I am not necessarily saying that commuters will decline, but clearly will underperform on growth or the other categories will grow faster. We are challenged in many of these categories. So how should one look at this conundrum? Historically, we have seen many companies choose market share outright because that is very crucial for the company, the stakeholders, everyone, including the dealers. Because I keep hearing that you are wanting to get back to margins of 14% plus and all very quickly. At the same time, I think we are seeing other expense and lot of discretionary spend being cut back, which may not necessarily be a great thing for investments on brands and business.",
+      "speakers": [
+        "Pramod Kumar"
+      ]
+    },
+    {
+      "time": 2395.17,
+      "text": "I am just trying to reconcile whether short term is what is important or you need to take the unnecessary pain in the near term for the longer term good of the company. So if you, Harsh, you can just share your broad thoughts there, sir.",
+      "speakers": [
+        "Pramod Kumar"
+      ]
+    },
+    {
+      "time": 2406.83,
+      "text": "No, sure. I think, Pramod, thanks for the question, which allows me to clarify if that's creating doubt. Clearly, we are focused on growth and market share expansion. So we are not going to compromise or cut down on investments needed for driving growth and market share expansion. You saw that, I think, quarter 2 was a good example. Probably that was a quarter where we saw the full manifestation of commodity cost hits that started end of February. Despite that, you saw we were able to gain Vahan share in every month of the quarter. So we have remained focused in continuing to invest behind growth, and that's what we will do. Vivek mentioned over next few quarters, not short term, is where we will get back, and he described various levers that will make it happen.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2458.35,
+      "text": "Those levers are not discretionary or the required investments behind growth. They are improving unit economics of products. That's more volume leverage. That's our LEAP cost saving, which is the BOM cost reduction program that we run. Those are the levers, not cutting down on any investments needed for growth. So we are super focused on driving growth and market share expansion.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2485.03,
+      "text": "Yeah. Thanks, Harsh. Thanks for that. Best of luck with that because it's normally very challenging to get everything right, but I think absolutely no harm in trying. The second question is on the festive trends, because Vahan clearly is showing moderation across categories. I think it's got to do with the super base of last year as well, and the El Niño. But how are you looking at retail trends, Harsh, from your vantage point? Do you expect your retail market share to improve significantly from here? Because at this point in time, we are tracking reasonable market share losses on a day on day basis like to like for the festive, and the base only gets punchier as you approach Dhanteras, Diwali.",
+      "speakers": [
+        "Pramod Kumar"
+      ]
+    },
+    {
+      "time": 2525.35,
+      "text": "So what's your read on the retail market share trends for yourself, particularly this festive, given that EVs have done well, premium continues to do well? So if you can just share your broad thoughts. Last one is, over the next two, three years, where do you see scooters plus EV as a category at the industry level? It's currently around 41%. Some of your peers are calling out 45% and then 50% by FY 2029. What is your assessment on the same, sir? Thank you.",
+      "speakers": [
+        "Pramod Kumar"
+      ]
+    },
+    {
+      "time": 2550.27,
+      "text": "Yeah. So on the festive, definition of festive can vary by company depending on product and geography mix. So for us, festival started with Ganesh festival.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2560.38,
+      "text": "There was Onam, there was Ganesh festival, and so on and so forth. Our festival period actually runs over a 100-day period. Festival to date, the way we are driving our festival performance, we have seen growth of 24%. This, by the way, is also a good way to look at it because it goes right from pre-GST impact to post-GST. Otherwise, one gets into this conundrum that right at the start of Navratri last year, the new GST came into effect, and there was a huge amount of pent-up demand that then immediately resulted into sale last year, and that will skew the base. Hence, looking into this broader period gives us a good indication, and we have seen a 24% growth on this broader definition of festival. There we are not seeing any share erosion.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2610.86,
+      "text": "I think it is a question of what period you look at. We do expect market share performance to further strengthen as we go towards Dhanteras, which traditionally is a big period for us. We do not expect concerns there. Coming to your second question, which is about the overall scooter mix. It is definitely ICE, and if we put together, category has increased, and we do expect that increase to continue. Now, where would it go? Will it go 44, 45, 47? Time will tell, so I do not want to speculate there. But the trajectory of category share going up, we do endorse that.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2652.52,
+      "text": "Thanks a lot, sir, and wish you all the best. Thank you.",
+      "speakers": [
+        "Pramod Kumar"
+      ]
+    },
+    {
+      "time": 2656.12,
+      "text": "Thank you. The next question comes from the line of Arvind Sharma from Citigroup. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 2663.6,
+      "text": "Hi. Good morning, sir. Thank you for taking my question. My first question would be on the premium bikes. While they are launching in the Xtreme portfolio, there have been a few brands or models which did well and then they have been kind of phased out. Karizma is one of the names that comes up, and some others as well. Premium bike market share has always been something that you have alluded to being one of the key focus areas. Will it just be the Xtreme or could there be more nameplates, more models in the premium bike segment? Because that is where the share is still low. That was my first question.",
+      "speakers": [
+        "Arvind Sharma"
+      ]
+    },
+    {
+      "time": 2700.02,
+      "text": "Yeah. As premium, we are looking at four brands as our drivers of growth. Xtreme is one, but also XPulse, which is the adventure bike or on-off roaders. Then we also have Karizma. There you would also see some good refreshes and new brand expansion launches on Karizma. Then, of course, Harley-Davidson, our co-developed products with our partnership with Harley. So all the four, you will see new launches and portfolio expansion there.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2734.64,
+      "text": "Got it, sir. The second question would be on the EV segment. One numerical clarification, sir. Last few quarters, you say about the margin drag on the business, and you call out the ICE margin. So if you could just tell us what would be the like-to-like ICE margin, and then I will follow up with my question.",
+      "speakers": [
+        "Arvind Sharma"
+      ]
+    },
+    {
+      "time": 2758.22,
+      "text": "Margin drag is about 220 basis points. If you were to look at, that's the total drag at a company level.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2766.32,
+      "text": "Yeah. Previous quarter, looking specifically at ICE portfolio, EBITDA margins were stable sequentially at 15.6%.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 2778.26,
+      "text": "It's around 200 basis points.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2780.32,
+      "text": "Yeah.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 2781.52,
+      "text": "Got it. Sir, going further in this segment. Yes, it's great to know that your gross margin positive, but some of the peers are actually turning almost EBITDA margin positive. Can you derive some synergies from your association?",
+      "speakers": [
+        "Arvind Sharma"
+      ]
+    },
+    {
+      "time": 2799.76,
+      "text": "You are right. I think there is some journey for us to walk on becoming EBITDA positive. But we also started a bit later in terms of expansion of portfolio on VIDA. Hence, our expenditures there are far higher. Also, then there is a scale effect. Once the volumes go to a level, some of your fixed costs in tooling, et cetera, start coming down. I think we still are some path ahead, somewhere ahead there to go to EBITDA positive. Coming to synergies with associate companies. The first obvious one was on the charging infrastructure. We have now over 6,000 of them nationally. We have started monetizing it, by the way. It is not only a differentiation, but now charging is also getting monetized.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2856.36,
+      "text": "With some of the associate companies like Euler, which is a complete complementary portfolio. We are also synergizing in go-to-market. There are synergies like that. With respect to Ather, right now on the product front, we have not explored because as we had explained last time, market is still in a rapid expansion mode, and we do not want any of the brands and R&D teams to get constrained in expanding the portfolio and expanding share. Maybe sometime in future when the market reaches higher level of growth and maturity, there could be additional synergy levers that will get explored.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2899.5,
+      "text": "Sure, sir. Thank you so much for the answers. That is all from my side. Thanks again.",
+      "speakers": [
+        "Arvind Sharma"
+      ]
+    },
+    {
+      "time": 2904.66,
+      "text": "Thank you. The next question comes from the line of Raghunandhan NL from Nuvama Research. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 2912.48,
+      "text": "Thank you, sir, for the opportunity. Festive greetings, and also welcoming Nitin sir. To Harsh sir and Kausalya. It is good to see EV market share at 14% in October. Considering that EV seems to be the future, how do you see the medium-term journey towards increasing market share towards company's blended share of 27% in EVs? Can you indicate medium-term efforts in terms of new products across use cases, across scooters, motorcycles, maybe innovation efforts such as battery-as-a-service, software, competitive pricing? All your thoughts, please do share. Thank you.",
+      "speakers": [
+        "Raghunandhan NL"
+      ]
+    },
+    {
+      "time": 2957.28,
+      "text": "Yeah, we do aim to continue to expand our EV market share to also emerging as a leader in EV. We are quite open and bold about that. You actually described some of the levers that we will utilize to get there. Some of the specifics, Kausalya, you may want to add.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 2979.36,
+      "text": "Hi, Raghunandhan. Apologies, I've kind of lost my voice, but I hope I'm audible. First of all, season's greetings to everyone on the call. I think, Raghu, you more or less touched on all our growth levers. In fact, in our investor deck on our website as well, we've talked a little bit about how we are expanding both our revenue share as well as our path to profitability. In terms of market share, it has been a supply-driven economy right now. We are very delighted that we've almost doubled our capacity in just a matter of the first half of the year. Like Harsh mentioned in the earlier statement, we're also looking to further enhance capacity towards the last quarter of this year, so we are extremely bullish.",
+      "speakers": [
+        "Kausalya Nandakumar"
+      ]
+    },
+    {
+      "time": 3020.22,
+      "text": "We are, of course, pressing on every lever in terms of investment, in terms of focus on brand building, and in terms of portfolio expansion. In this half of the year itself, we've launched two very good variants, both of whom have found phenomenal product market fit. One at the top end of the series, which was the 4.4 kW, and one at the mid-range, mainstream segment, which was the 3.1 kW. So we are committed to continue to listen to consumers and customers, take feedback, and expand the portfolio to meet their demands. We continue to invest in capacity in order to meet our ambition in this space.",
+      "speakers": [
+        "Kausalya Nandakumar"
+      ]
+    },
+    {
+      "time": 3059.58,
+      "text": "Thank you for that. Even Harsh sir spoke about how that new 4 kW is getting a very good response. Can you indicate broadly how would be the mix between 2 kW, 3 kW, 4 kW, how that premiumization is panning out, and how customers are thinking?",
+      "speakers": [
+        "Raghunandhan NL"
+      ]
+    },
+    {
+      "time": 3081.46,
+      "text": "Raghu, this is a new variant introduction, and therefore, one is in terms of customer traction. We are seeing a lot of inquiries for the top end. However, we also see that there is a good distribution of inquiries across ranges. Consumers are looking for product that more or less fits their daily range requirement, right from something like 75 km per day, which is what our 2.2 variant offers, all the way to close to about 140 km, which is top-end. We are seeing a good traction. It is very early days to actually comment on the stable blend, but we are seeing almost the premium range now pulling close to 40% of the overall portfolio for VIDA.",
+      "speakers": [
+        "Kausalya Nandakumar"
+      ]
+    },
+    {
+      "time": 3122.18,
+      "text": "Maybe to build on what Kausalya said, I think one thing that we should call out, and it is there in our investor deck on the website. We are right now selling or retailing VIDA through around 700 retail outlets. More regularly, with enough supplies available, to maybe 450. When you put it in the context that we have close to 8,500 points of sale. There is a lot more retail expansion that is also going to come to further drive the growth. This is one of our biggest strengths, the large go-to market in the entire nook and corner of the country. As we start scaling up our capacity in VIDA, you will see more and more of these outlets also getting opened up.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 3170.86,
+      "text": "Thank you, sir. Very helpful. To Mr. Vivek Anand. Sir, if you can touch upon in Q3, you said there is a small commodity cost inflation. Approximately how much can be the inflation impact, and what has been the cumulative price hike so far, and any more calibrated price hikes you are planning going forward?",
+      "speakers": [
+        "Raghunandhan NL"
+      ]
+    },
+    {
+      "time": 3196.04,
+      "text": "In Q2, we had a material price inflation of, as I said, around 1%. A large part of it, we had covered it through cost-saving programs and calibrated price increase. Yeah. That was one. Sorry, if you can just repeat your second question.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 3219.8,
+      "text": "I was asking approximately how much can be the cost inflation in Q3, what has been the cumulative price hike so far, and any plans of further price hikes, sir?",
+      "speakers": [
+        "Raghunandhan NL"
+      ]
+    },
+    {
+      "time": 3231.08,
+      "text": "Okay. In terms of price hike, our quarter one and quarter two, as I said earlier, our inflation is around 5.5%. We have taken half of it as a price increase. In terms of quarter three, as you know, commodity continues to be volatile. We expect a marginal uptick in input cost. However, we counter those headwinds through continued cost rationalization, accelerated LEAP savings, aggressive improvements in improving VIDA unit economics, and targeted pricing actions. Backed by these measures, we expect the margins to be broadly stable.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 3271.92,
+      "text": "We did take a price hike on the 1st of October as well.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 3277.58,
+      "text": "We took one price increase in October. Yeah, that is right.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 3281.8,
+      "text": "How much was it, sir?",
+      "speakers": [
+        "Raghunandhan NL"
+      ]
+    },
+    {
+      "time": 3284,
+      "text": "That was almost around INR 1,000 per unit.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 3290.72,
+      "text": "Noted, sir. Thank you. This was very helpful. Wishing you all the best.",
+      "speakers": [
+        "Raghunandhan NL"
+      ]
+    },
+    {
+      "time": 3296.52,
+      "text": "Thank you. The next question comes from the line of Yash Agarwal from Nirmal Bang. Please go ahead.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 3302.22,
+      "text": "Hi, good morning. Thank you for the opportunity. My first question is for Anuj, sir, on Hero's premium segment. Despite the recent product launches and increased focus on premiumization, the segment hasn't really gained the expected traction yet. What are the key factors holding back the growth, and what specific steps are we taking to accelerate the adoption, strengthening our position in that segment against competitors?",
+      "speakers": [
+        "Yash Agarwal"
+      ]
+    },
+    {
+      "time": 3326.8,
+      "text": "Thank you, Yash. You're right, absolutely. So far, our market share and the results have not been great, but that also tells how big the headroom for us is to grow. I must share with you the recent two launches which Harsh touched upon, which is Xtreme 160 and Xtreme 250. Excellent feedback from the media rights and also initial uptick of the inquiry levels at the dealerships. That definitely is very encouraging. XPulse has proven to be an excellent volume turner for us. Now, it was more in south. Now the other zones of the country also have started showing huge interest in XPulse, which is going to be another very strong brand for us in the premium segment. The premium network, which we started opening around 2 years back.",
+      "speakers": [
+        "Anuj Dua"
+      ]
+    },
+    {
+      "time": 3377.96,
+      "text": "We have reached around 150 stores now, and there is going to be a rapid expansion across other cities and all major cities where the premium segment business is big. That is going to be a major focus for sure. The whole focus on this expansion will also be kind of supported by a fact that the community building efforts across all these premium dealerships will start from December onwards in a very structured manner. All this put together, these levers, we are very confident we'll be growing our premium segment business quite a lot. As I said, there is a huge headroom for us to grow.",
+      "speakers": [
+        "Anuj Dua"
+      ]
+    },
+    {
+      "time": 3417.68,
+      "text": "Thank you, sir. My second question is on the EV segment. We have seen scooter penetration in EV going close to 23%-24%. What is the current EV penetration level in electric motorcycle at industry level, and how does Hero assess the segment's adoption potential going forward?",
+      "speakers": [
+        "Yash Agarwal"
+      ]
+    },
+    {
+      "time": 3438.98,
+      "text": "Yeah. Hi, Yash. As you know that the product market fit in e-motorcycles is being established. The penetration is, of course, very low single digits. This is, again, in terms of the value proposition that you need to bring to consumers who are otherwise inclined to buying motorcycles. Therefore, this segment continues to be under-penetrated with respect to electrification, and we are seeing more buoyancy on the scooter space. Like you mentioned, it is close to 22%-23% penetration of EVs in the scooter part of the portfolio.",
+      "speakers": [
+        "Kausalya Nandakumar"
+      ]
+    },
+    {
+      "time": 3473.94,
+      "text": "What is our launch pipeline? Are you planning any electric motorcycle launch in next one or two years? Any update on that?",
+      "speakers": [
+        "Yash Agarwal"
+      ]
+    },
+    {
+      "time": 3482.26,
+      "text": "We'll of course, love to give you more information maybe closer to the date, but we will keep you informed. As of now, we continue to take in customer information and requirements and build our product portfolio basis that. We will keep you informed closer to dates as we get to that point.",
+      "speakers": [
+        "Kausalya Nandakumar"
+      ]
+    },
+    {
+      "time": 3501.26,
+      "text": "Just one last question on flex fuel motorcycle segment. What has been the initial response to it, and how much contribution do you expect from flex fuel segment going forward in the midterm?",
+      "speakers": [
+        "Yash Agarwal"
+      ]
+    },
+    {
+      "time": 3512.88,
+      "text": "No, I think great question. From the date we launched or started shipping, it has been little over two months, and we have done close to 15,000 dispatches of flex fuel vehicles. So right now it is more of a controlled launch because you do not have E85 availability across the country. So we have started it in select dealerships. But we do see that even in areas where there is no E85 and the normal fuel availability E20, customers are going ahead and buying flex fuel vehicle because it is future proof and gives consumer flexibility to use different fuel blends as and when they are available.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 3557.88,
+      "text": "Thank you, sir. That is it from my side.",
+      "speakers": [
+        "Yash Agarwal"
+      ]
+    },
+    {
+      "time": 3560.82,
+      "text": "Thank you. Ladies and gentlemen, we will take this as the last question for today. I now hand over to Mr. Harshavardhan Chitale for closing comments. Over to you, sir.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 3571.94,
+      "text": "Thank you. Thank you for joining us today. Again, wish you all best wishes for Diwali, you and your loved ones, and look forward to again talking to you next quarter.",
+      "speakers": [
+        "Harshavardhan Chitale"
+      ]
+    },
+    {
+      "time": 3583.68,
+      "text": "Yeah. Thank you.",
+      "speakers": [
+        "Vivek Anand"
+      ]
+    },
+    {
+      "time": 3585.04,
+      "text": "Thank you.",
+      "speakers": [
+        "Kausalya Nandakumar"
+      ]
+    },
+    {
+      "time": 3586.28,
+      "text": "Thank you. On behalf of Hero MotoCorp Limited and PhillipCapital India Private Limited, that concludes this conference. Thank you for joining us, and you may now disconnect your lines.",
+      "speakers": [
+        "Operator"
+      ]
+    },
+    {
+      "time": 3597.38,
+      "text": "Thank you.",
+      "speakers": [
+        "Operator"
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": 8891456,
+      "title": "Prepared Remarks",
+      "startTimestamp": 0,
+      "endTimestamp": 1113,
+      "level": 1
+    },
+    {
+      "id": 8891457,
+      "title": "Q&A",
+      "startTimestamp": 1113,
+      "endTimestamp": 3597,
+      "level": 1
+    },
+    {
+      "id": 8891492,
+      "title": "Intro and housekeeping",
+      "startTimestamp": 0,
+      "endTimestamp": 124,
+      "level": 2
+    },
+    {
+      "id": 8891493,
+      "title": "Industry trends and outlook",
+      "startTimestamp": 124,
+      "endTimestamp": 360,
+      "level": 2
+    },
+    {
+      "id": 8891494,
+      "title": "Product and segment updates",
+      "startTimestamp": 360,
+      "endTimestamp": 677,
+      "level": 2
+    },
+    {
+      "id": 8891495,
+      "title": "Financial performance and margins",
+      "startTimestamp": 677,
+      "endTimestamp": 1080,
+      "level": 2
+    },
+    {
+      "id": 8891496,
+      "title": "Q&A introduction",
+      "startTimestamp": 1080,
+      "endTimestamp": 1113,
+      "level": 2
+    },
+    {
+      "id": 8891497,
+      "title": "Exports exposure & market mix",
+      "startTimestamp": 1113,
+      "endTimestamp": 1229,
+      "level": 2
+    },
+    {
+      "id": 8891498,
+      "title": "Expansion in Brazil, Mexico & Africa",
+      "startTimestamp": 1229,
+      "endTimestamp": 1303,
+      "level": 2
+    },
+    {
+      "id": 8891499,
+      "title": "125Cc portfolio & model updates",
+      "startTimestamp": 1303,
+      "endTimestamp": 1467,
+      "level": 2
+    },
+    {
+      "id": 8891500,
+      "title": "EV revenue, drag & commodity impact",
+      "startTimestamp": 1467,
+      "endTimestamp": 1540,
+      "level": 2
+    },
+    {
+      "id": 8891501,
+      "title": "PLI benefits & revenue scaling",
+      "startTimestamp": 1540,
+      "endTimestamp": 1604,
+      "level": 2
+    },
+    {
+      "id": 8891502,
+      "title": "ICE scooter capacity & variants",
+      "startTimestamp": 1604,
+      "endTimestamp": 1706,
+      "level": 2
+    },
+    {
+      "id": 8891503,
+      "title": "Scooter demand & capacity expansion",
+      "startTimestamp": 1706,
+      "endTimestamp": 1812,
+      "level": 2
+    },
+    {
+      "id": 8891504,
+      "title": "Export logistics & recovery outlook",
+      "startTimestamp": 1812,
+      "endTimestamp": 1872,
+      "level": 2
+    },
+    {
+      "id": 8891505,
+      "title": "Industry growth outlook for H2",
+      "startTimestamp": 1872,
+      "endTimestamp": 1931,
+      "level": 2
+    },
+    {
+      "id": 8891506,
+      "title": "EV supply constraints & capacity plans",
+      "startTimestamp": 1931,
+      "endTimestamp": 2091,
+      "level": 2
+    },
+    {
+      "id": 8891507,
+      "title": "Cost cuts, margins & guidance",
+      "startTimestamp": 2091,
+      "endTimestamp": 2209,
+      "level": 2
+    },
+    {
+      "id": 8891508,
+      "title": "Rural demand & drought impact",
+      "startTimestamp": 2209,
+      "endTimestamp": 2313,
+      "level": 2
+    },
+    {
+      "id": 8891509,
+      "title": "Market share vs margin strategy",
+      "startTimestamp": 2313,
+      "endTimestamp": 2485,
+      "level": 2
+    },
+    {
+      "id": 8891510,
+      "title": "Festive trends & scooter mix outlook",
+      "startTimestamp": 2485,
+      "endTimestamp": 2664,
+      "level": 2
+    },
+    {
+      "id": 8891511,
+      "title": "Premium bike portfolio & launches",
+      "startTimestamp": 2664,
+      "endTimestamp": 2735,
+      "level": 2
+    },
+    {
+      "id": 8891512,
+      "title": "EV drag & ICE margin",
+      "startTimestamp": 2735,
+      "endTimestamp": 2782,
+      "level": 2
+    },
+    {
+      "id": 8891513,
+      "title": "EV synergies & charging monetization",
+      "startTimestamp": 2782,
+      "endTimestamp": 2912,
+      "level": 2
+    },
+    {
+      "id": 8891514,
+      "title": "EV market share growth levers",
+      "startTimestamp": 2912,
+      "endTimestamp": 3060,
+      "level": 2
+    },
+    {
+      "id": 8891515,
+      "title": "VIDA product mix & premiumization",
+      "startTimestamp": 3060,
+      "endTimestamp": 3171,
+      "level": 2
+    },
+    {
+      "id": 8891516,
+      "title": "Commodity inflation & pricing actions",
+      "startTimestamp": 3171,
+      "endTimestamp": 3302,
+      "level": 2
+    },
+    {
+      "id": 8891517,
+      "title": "Premium segment expansion & network",
+      "startTimestamp": 3302,
+      "endTimestamp": 3418,
+      "level": 2
+    },
+    {
+      "id": 8891518,
+      "title": "Electric motorcycle adoption & pipeline",
+      "startTimestamp": 3418,
+      "endTimestamp": 3474,
+      "level": 2
+    },
+    {
+      "id": 8891519,
+      "title": "Flex fuel uptake & closing remarks",
+      "startTimestamp": 3474,
+      "endTimestamp": 3597,
+      "level": 2
+    }
+  ]
+}

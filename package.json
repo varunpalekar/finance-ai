@@ -15,9 +15,14 @@
     "setup": "node setup.js",
     "auth": "node scripts/auth.js",
     "reauth": "node scripts/auth.js --reauth",
+    "auth:pplx": "node scripts/auth-perplexity.js",
+    "reauth:pplx": "node scripts/auth-perplexity.js --reauth",
+    "status:pplx": "node scripts/auth-perplexity.js --status",
+    "record:pplx": "node scripts/record-perplexity-fixtures.js",
     "start": "node src/index.js",
     "test": "node --test test/*.test.js",
-    "test:live": "node --test test/live.test.js"
+    "test:live": "node --test test/live.test.js",
+    "test:pplx": "node --test test/perplexity-live.test.js"
   },
   "keywords": [
     "mcp",
