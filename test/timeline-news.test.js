@@ -25,6 +25,31 @@ test('getCompanyTimeline extracts authentic key_events and what_to_watch analyst
 
   assert.ok(res.what_to_watch);
   assert.ok(res.what_to_watch.analyst_summary.length > 20, 'Expected substantive analyst summary text');
+
+  for (let i = 1; i < res.key_events.length; i++) {
+    const prev = res.key_events[i - 1].date || '';
+    const curr = res.key_events[i].date || '';
+    assert.ok(prev <= curr, `Key events must be sorted chronologically: ${prev} <= ${curr}`);
+  }
+});
+
+test('getCompanyTimeline deterministically sorts events chronologically even if DOM order is reversed', async () => {
+  const reverseHtml = `<html><body><script id="company_details_data" type="application/json">
+    {"memory_overview": {"key_events": [
+      {"date": "2026-05-10", "label": "Recent event"},
+      {"date": "2024-01-15", "label": "Old event"},
+      {"date": "2025-08-20", "label": "Middle event"}
+    ]}}
+  </script></body></html>`;
+  const mockFetch = createMockFetch({
+    '/company/reverse-corp/': { status: 200, body: reverseHtml }
+  });
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+  const res = await client.getCompanyTimeline('reverse-corp');
+  assert.equal(res.key_events.length, 3);
+  assert.equal(res.key_events[0].date, '2024-01-15');
+  assert.equal(res.key_events[1].date, '2025-08-20');
+  assert.equal(res.key_events[2].date, '2026-05-10');
 });
 
 test('getStockNews parses authentic Google News RSS items, strips trailing source suffix from title, and respects limit', async () => {
@@ -65,7 +90,7 @@ test('getStockNews handles malformed XML or empty RSS gracefully without crashin
   assert.ok(res.note);
 });
 
-test('getStockNews does not leak Tijori session cookies or CSRF token to Google News', async () => {
+test('getStockNews does not leak Tijori session cookies, CSRF, Referer, or Origin to Google News', async () => {
   let capturedHeaders = null;
   const mockFetch = async (url, init) => {
     capturedHeaders = init.headers;
@@ -85,6 +110,28 @@ test('getStockNews does not leak Tijori session cookies or CSRF token to Google 
   assert.ok(capturedHeaders, 'Expected request headers to be captured');
   assert.equal(capturedHeaders['Cookie'], undefined, 'Must not leak Cookie header to Google News');
   assert.equal(capturedHeaders['X-CSRFToken'], undefined, 'Must not leak X-CSRFToken to Google News');
+  assert.equal(capturedHeaders['Origin'], undefined, 'Must not leak Origin header to Google News');
+  assert.equal(capturedHeaders['Referer'], undefined, 'Must not leak Referer header to Google News');
+});
+
+test('getStockNews receiving HTTP 403 or 401 from third party does not wipe Tijori session', async () => {
+  const mockFetch = async () => {
+    return new Response('Forbidden', { status: 403, statusText: 'Forbidden' });
+  };
+  const client = new TijoriClient({
+    fetchFn: mockFetch,
+    cacheEnabled: false,
+    sessionPath: '/non-existent-session.json',
+  });
+  client._session = {
+    cookieHeader: 'sessionid=valid_tijori_session',
+    csrfToken: 'valid_tijori_csrf',
+  };
+
+  const res = await client.getStockNews('NSE:TEST_403');
+  assert.deepEqual(res.news, []);
+  assert.equal(client._session.cookieHeader, 'sessionid=valid_tijori_session', 'Tijori session must remain intact');
+  assert.equal(client._session.csrfToken, 'valid_tijori_csrf', 'Tijori csrf token must remain intact');
 });
 
 test('getStockNews falls back to stale cache on network failure and does not poison cache with empty results', async () => {

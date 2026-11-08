@@ -272,17 +272,19 @@ export class TijoriClient {
     const defaultHeaders = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       'Accept': 'application/json, text/html, */*',
-      'Referer': `${this.baseUrl}/`,
-      'Origin': this.baseUrl,
     };
 
     const isTijoriHost = !fullUrl.startsWith('http') || new URL(fullUrl).hostname.endsWith('tijorifinance.com');
 
-    if (isTijoriHost && this._session.cookieHeader) {
-      defaultHeaders['Cookie'] = this._session.cookieHeader;
-    }
-    if (isTijoriHost && this._session.csrfToken) {
-      defaultHeaders['X-CSRFToken'] = this._session.csrfToken;
+    if (isTijoriHost) {
+      defaultHeaders['Referer'] = `${this.baseUrl}/`;
+      defaultHeaders['Origin'] = this.baseUrl;
+      if (this._session.cookieHeader) {
+        defaultHeaders['Cookie'] = this._session.cookieHeader;
+      }
+      if (this._session.csrfToken) {
+        defaultHeaders['X-CSRFToken'] = this._session.csrfToken;
+      }
     }
 
     const fetchOpts = {
@@ -298,7 +300,7 @@ export class TijoriClient {
         await new Promise(r => setTimeout(r, 500));
         res = await this.fetchFn(fullUrl, fetchOpts);
         if (res.status === 429) {
-          const err = new Error('Tijori API rate limit exceeded (HTTP 429).');
+          const err = new Error(isTijoriHost ? 'Tijori API rate limit exceeded (HTTP 429).' : `Upstream rate limit exceeded (HTTP 429) from ${fullUrl}`);
           err.code = 'RATE_LIMITED';
           err.status = 429;
           throw err;
@@ -324,7 +326,7 @@ export class TijoriClient {
     }
 
     const resUrl = res.url || '';
-    if (resUrl.includes('/signin') || res.status === 401 || res.status === 403) {
+    if (isTijoriHost && (resUrl.includes('/signin') || res.status === 401 || res.status === 403)) {
       this._sessionMtime = 0;
       this._session = { cookieHeader: '', csrfToken: '' };
       const err = new Error('Tijori session has expired. Run "npm run auth" to log in again.');
@@ -1732,9 +1734,9 @@ export class TijoriClient {
 
     try {
       // 1. Fetch overview page first to resolve company_id and peers
-      const overviewFetched = await this._fetch(`/company/${slug}/`, { fresh });
-      const overviewHtml = await overviewFetched.response.text();
-      const $ = cheerio.load(overviewHtml);
+      const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+      if (overviewRes.stale) return overviewRes.stale;
+      const { $, html: overviewHtml } = overviewRes;
 
       let companyId = null;
       const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
@@ -1982,9 +1984,20 @@ export class TijoriClient {
   }
 
   async _fetchCompanyOverviewHtml(slug, { fresh = false, cacheKey = null } = {}) {
+    const htmlCacheKey = `html:overview:${slug}`;
+    if (this.cacheEnabled && !fresh) {
+      const cached = get(htmlCacheKey, { allowStale: false });
+      if (cached?.value) {
+        return { $: cheerio.load(cached.value), html: cached.value };
+      }
+    }
+
     try {
       const fetched = await this._fetch(`/company/${slug}/`, { fresh });
       const html = await fetched.response.text();
+      if (this.cacheEnabled) {
+        set(htmlCacheKey, html, TTL.OVERVIEW, 'html', slug);
+      }
       const $ = cheerio.load(html);
       return { $, html };
     } catch (err) {
@@ -2060,6 +2073,9 @@ export class TijoriClient {
         }
       });
     }
+
+    // Deterministically sort key events chronologically
+    keyEvents.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
     const result = {
       slug,
@@ -2236,6 +2252,7 @@ export class TijoriClient {
 
     let operationalSupplierNotes = [];
     let operationalCustomerNotes = [];
+    // shortcut: relational products graph requires dedicated entity mapping endpoint, deferred to FEAT-024
     let relationalProducts = [];
     let industriesCatered = [];
 

@@ -69,3 +69,20 @@ test('getCorporateActions and getSupplyChain fall back to stale SQLite cache on 
   const staleSupply = await client.getSupplyChain(slug, { fresh: true });
   assert.equal(staleSupply._cache_meta?.is_stale, true, 'getSupplyChain must return stale cache on network drop');
 });
+
+test('overview HTML is cached in SQLite and shared across getCorporateActions and getSupplyChain', async () => {
+  const slug = `shared-overview-${Date.now()}`;
+  const liveHtml = readFileSync(join(__dirname, 'fixtures', 'swaraj-engines-overview.html'), 'utf-8');
+  let networkCalls = 0;
+  const mockFetch = async () => {
+    networkCalls++;
+    return new Response(liveHtml, { status: 200, headers: { 'content-type': 'text/html' } });
+  };
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: true });
+
+  await client.getCorporateActions(slug);
+  assert.equal(networkCalls, 1, 'First call fetches overview from network');
+
+  await client.getSupplyChain(slug);
+  assert.equal(networkCalls, 1, 'Second call reuses cached overview HTML without network request');
+});

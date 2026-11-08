@@ -45,6 +45,7 @@ export function initDb(dbPath) {
     try {
       db.exec('PRAGMA journal_mode = WAL;');
       db.exec('PRAGMA synchronous = NORMAL;');
+      db.exec('PRAGMA busy_timeout = 5000;');
     } catch (_) {}
   }
 
