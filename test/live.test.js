@@ -247,4 +247,14 @@ test('live integration test suite covering all 20 MCP functions with real data v
     client.clearCache('tata-steel-limited');
     assert.equal(get('test_clear:tata-steel-limited'), null, 'Record must be deleted after clearCache');
   });
+
+  // 21. get_factors_and_benchmarking
+  await t.test('21. get_factors_and_benchmarking: extracts authentic radar axes and formulas for bank-of-maharashtra', async () => {
+    const res = await client.getFactorsAndBenchmarking('bank-of-maharashtra');
+    assert.ok(res);
+    assert.equal(res.slug, 'bank-of-maharashtra');
+    assert.ok(Array.isArray(res.radar_axes) && res.radar_axes.length >= 2);
+    assert.equal(typeof res.radar_axes[0].company_score, 'number');
+    assert.equal(typeof res.radar_axes[0].peer_median, 'number');
+  });
 });

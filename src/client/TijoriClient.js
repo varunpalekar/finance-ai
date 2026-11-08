@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import * as cheerio from 'cheerio';
 import { get, set, clear, TTL, initDb } from '../cache.js';
+import { computePercentiles } from '../helpers.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -1563,6 +1564,94 @@ export class TijoriClient {
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.PERMANENT, 'json');
+    }
+
+    return result;
+  }
+
+  async getFactorsAndBenchmarking(slug, { fresh = false } = {}) {
+    const cacheKey = `factors:${slug}`;
+
+    const fetched = await this._fetch(`/company/${slug}/factors/`, {
+      cacheKey,
+      fresh,
+    });
+
+    if (fetched.isCached) {
+      return fetched.data;
+    }
+
+    const html = await fetched.response.text();
+    const $ = cheerio.load(html);
+
+    // Extract company name and ticker
+    let companyName = null;
+    let symbol = null;
+    try {
+      const tourEl = $('#benchmarking-tour-config');
+      if (tourEl.length) {
+        const tour = JSON.parse(tourEl.html());
+        companyName = tour.companyShort || null;
+        symbol = tour.companyTicker || null;
+      }
+    } catch (_) {}
+
+    if (!companyName) {
+      const title = $('title').text() || '';
+      const match = title.match(/^(.*?)\s+(?:benchmarking|factors)/i);
+      companyName = match ? match[1].trim() : slug;
+    }
+
+    // Extract radar data
+    let radarAxes = [];
+    try {
+      const radarEl = $('#factor-radar-data');
+      if (radarEl.length) {
+        const radarData = JSON.parse(radarEl.html());
+        const axes = radarData.axes || [];
+        const series = radarData.series || [];
+        const targetSeries = series[0];
+        const peerSeries = series.slice(1);
+
+        radarAxes = axes.map((axis, i) => {
+          const companyScore = targetSeries?.data?.[i] ?? 0;
+          const peerScores = peerSeries.map((s) => s.data?.[i]).filter((s) => typeof s === 'number');
+          const peerMedian = peerScores.length ? (computePercentiles(peerScores, [0.5]).p50 ?? 0) : 0;
+          return {
+            name: axis.name || axis.label || axis.key,
+            key: axis.key,
+            company_score: companyScore,
+            peer_median: peerMedian,
+            polarity: axis.polarity || null,
+          };
+        });
+      }
+    } catch (_) {}
+
+    // Extract formulas & qualitative notes
+    let formulas = [];
+    try {
+      const cellInfoEl = $('#factor-cell-info');
+      if (cellInfoEl.length) {
+        const cellInfo = JSON.parse(cellInfoEl.html());
+        if (Array.isArray(cellInfo.formulas)) {
+          formulas = cellInfo.formulas;
+        }
+      }
+    } catch (_) {}
+
+    const hasData = radarAxes.length > 0 || formulas.length > 0;
+    const result = {
+      slug,
+      company_name: companyName,
+      symbol,
+      radar_axes: radarAxes,
+      formulas,
+      ...(hasData ? {} : { note: 'No factor benchmarking data available for this company' }),
+    };
+
+    if (this.cacheEnabled) {
+      set(cacheKey, result, TTL.FACTORS, 'json', slug);
     }
 
     return result;
