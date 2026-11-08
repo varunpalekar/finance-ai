@@ -79,3 +79,27 @@ test('getValuationBands returns clean fallback with nulls when company_id cannot
   assert.deepEqual(res.peers, []);
   assert.ok(res.note);
 });
+
+test('getValuationBands falls back to stale SQLite cache on network outage', async () => {
+  const slug = `swaraj-val-${Date.now()}`;
+  const peJson = readFileSync(join(__dirname, 'fixtures', 'swaraj-engines-pe.json'), 'utf-8');
+  const overviewHtml = readFileSync(join(__dirname, 'fixtures', 'swaraj-engines-overview.html'), 'utf-8');
+  let shouldFail = false;
+  const mockFetch = async (url) => {
+    if (shouldFail) throw new Error('503 Service Unavailable');
+    if (url.includes('/chartdata/')) {
+      return new Response(peJson, { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(overviewHtml, { status: 200, headers: { 'content-type': 'text/html' } });
+  };
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: true });
+
+  const initial = await client.getValuationBands(slug);
+  assert.equal(initial.slug, slug);
+  assert.ok(initial.valuation_bands['1y']);
+
+  shouldFail = true;
+  const fallback = await client.getValuationBands(slug, { fresh: true });
+  assert.equal(fallback._cache_meta?.is_stale, true, 'Must return stale valuation bands on network drop');
+  assert.ok(fallback.valuation_bands['1y']);
+});

@@ -276,10 +276,12 @@ export class TijoriClient {
       'Origin': this.baseUrl,
     };
 
-    if (this._session.cookieHeader) {
+    const isTijoriHost = !fullUrl.startsWith('http') || new URL(fullUrl).hostname.endsWith('tijorifinance.com');
+
+    if (isTijoriHost && this._session.cookieHeader) {
       defaultHeaders['Cookie'] = this._session.cookieHeader;
     }
-    if (this._session.csrfToken) {
+    if (isTijoriHost && this._session.csrfToken) {
       defaultHeaders['X-CSRFToken'] = this._session.csrfToken;
     }
 
@@ -1728,124 +1730,137 @@ export class TijoriClient {
       if (cached) return cached;
     }
 
-    // 1. Fetch overview page first to resolve company_id and peers
-    const overviewFetched = await this._fetch(`/company/${slug}/`, { fresh });
-    const overviewHtml = await overviewFetched.response.text();
-    const $ = cheerio.load(overviewHtml);
-
-    let companyId = null;
-    const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
-    if (companyIdMatch) {
-      companyId = parseInt(companyIdMatch[1], 10);
-    } else {
-      const ids = await this.resolveCompanyIds(slug, { fresh });
-      companyId = ids?.company_id ?? null;
-    }
-
-    // Extract peers from #peers_table_data
-    let peers = [];
     try {
-      const scriptEl = $('#peers_table_data');
-      if (scriptEl.length) {
-        const raw = JSON.parse(scriptEl.html());
-        const data = raw?.[1]?.data || [];
-        peers = data.map((p) => ({
-          name: p.name || null,
-          slug: p.slug || null,
-          mcap: p['Market Capital'] ?? null,
-          pe: typeof p.PE === 'number' ? p.PE : null,
-          latest_price: p['Latest Price'] ?? null,
-        }));
+      // 1. Fetch overview page first to resolve company_id and peers
+      const overviewFetched = await this._fetch(`/company/${slug}/`, { fresh });
+      const overviewHtml = await overviewFetched.response.text();
+      const $ = cheerio.load(overviewHtml);
+
+      let companyId = null;
+      const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
+      if (companyIdMatch) {
+        companyId = parseInt(companyIdMatch[1], 10);
+      } else {
+        const ids = await this.resolveCompanyIds(slug, { fresh });
+        companyId = ids?.company_id ?? null;
       }
-    } catch (_) {}
 
-    if (!companyId) {
-      const fallback = {
-        slug,
-        company_id: null,
-        current_pe: null,
-        valuation_bands: { '1y': null, '3y': null, '5y': null, '10y': null },
-        peers,
-        loss_making_days_excluded: 0,
-        note: 'Unable to resolve numeric company_id for valuation bands',
-      };
-      if (this.cacheEnabled) {
-        set(cacheKey, fallback, TTL.VALUATION, 'json', slug);
+      // Extract peers from #peers_table_data
+      let peers = [];
+      try {
+        const scriptEl = $('#peers_table_data');
+        if (scriptEl.length) {
+          const raw = JSON.parse(scriptEl.html());
+          const data = raw?.[1]?.data || [];
+          peers = data.map((p) => ({
+            name: p.name || null,
+            slug: p.slug || null,
+            mcap: p['Market Capital'] ?? null,
+            pe: typeof p.PE === 'number' ? p.PE : null,
+            latest_price: p['Latest Price'] ?? null,
+          }));
+        }
+      } catch (_) {}
+
+      if (!companyId) {
+        const fallback = {
+          slug,
+          company_id: null,
+          current_pe: null,
+          valuation_bands: { '1y': null, '3y': null, '5y': null, '10y': null },
+          peers,
+          loss_making_days_excluded: 0,
+          note: 'Unable to resolve numeric company_id for valuation bands',
+        };
+        if (this.cacheEnabled) {
+          set(cacheKey, fallback, TTL.VALUATION, 'json', slug);
+        }
+        return fallback;
       }
-      return fallback;
-    }
 
-    // 2. Fetch daily historical P/E series
-    const chartFetched = await this._fetch(`/api/v1/ind/chartdata/${companyId}/pe/`, { fresh });
-    const chartJson = await chartFetched.response.json();
-    let rawPoints = [];
-    if (chartJson?.data) {
-      rawPoints = typeof chartJson.data === 'string' ? JSON.parse(chartJson.data) : chartJson.data;
-    }
+      // 2. Fetch daily historical P/E series
+      const chartFetched = await this._fetch(`/api/v1/ind/chartdata/${companyId}/pe/`, { fresh });
+      const chartJson = await chartFetched.response.json();
+      let rawPoints = [];
+      if (chartJson?.data) {
+        rawPoints = typeof chartJson.data === 'string' ? JSON.parse(chartJson.data) : chartJson.data;
+      }
 
-    let lossDaysCount = 0;
-    const validPoints = [];
-    for (const point of rawPoints) {
-      if (Array.isArray(point) && point.length >= 2) {
-        const [ts, pe] = point;
-        if (typeof pe === 'number') {
-          if (pe <= 0) {
-            lossDaysCount++;
-          } else {
-            validPoints.push([ts, pe]);
+      let lossDaysCount = 0;
+      const validPoints = [];
+      for (const point of rawPoints) {
+        if (Array.isArray(point) && point.length >= 2) {
+          const [ts, pe] = point;
+          if (typeof pe === 'number') {
+            if (pe <= 0) {
+              lossDaysCount++;
+            } else {
+              validPoints.push([ts, pe]);
+            }
           }
         }
       }
-    }
 
-    validPoints.sort((a, b) => a[0] - b[0]);
-    const currentPe = validPoints.length > 0 ? validPoints[validPoints.length - 1][1] : null;
+      validPoints.sort((a, b) => a[0] - b[0]);
+      const currentPe = validPoints.length > 0 ? validPoints[validPoints.length - 1][1] : null;
 
-    const valuationBands = { '1y': null, '3y': null, '5y': null, '10y': null };
-    if (validPoints.length > 0) {
-      const maxTs = validPoints[validPoints.length - 1][0];
-      const minTs = validPoints[0][0];
-      const totalSpanDays = (maxTs - minTs) / 86400000;
+      const valuationBands = { '1y': null, '3y': null, '5y': null, '10y': null };
+      if (validPoints.length > 0) {
+        const maxTs = validPoints[validPoints.length - 1][0];
+        const minTs = validPoints[0][0];
+        const totalSpanDays = (maxTs - minTs) / 86400000;
 
-      const timeframeDefs = [
-        { key: '1y', days: 365 },
-        { key: '3y', days: 3 * 365 },
-        { key: '5y', days: 5 * 365 },
-        { key: '10y', days: 10 * 365 },
-      ];
+        const timeframeDefs = [
+          { key: '1y', days: 365 },
+          { key: '3y', days: 3 * 365 },
+          { key: '5y', days: 5 * 365 },
+          { key: '10y', days: 10 * 365 },
+        ];
 
-      for (const tf of timeframeDefs) {
-        if (totalSpanDays >= tf.days * 0.8) {
-          const cutoffTs = maxTs - tf.days * 86400000;
-          const windowPoints = validPoints.filter(([ts]) => ts >= cutoffTs);
-          const peValues = windowPoints.map(([, pe]) => pe);
-          const stats = computePercentiles(peValues, [0.25, 0.5, 0.75]);
-          valuationBands[tf.key] = {
-            min: stats.min,
-            p25: stats.p25,
-            median: stats.p50,
-            p75: stats.p75,
-            max: stats.max,
-            sample_count: stats.count,
+        for (const tf of timeframeDefs) {
+          if (totalSpanDays >= tf.days * 0.8) {
+            const cutoffTs = maxTs - tf.days * 86400000;
+            const windowPoints = validPoints.filter(([ts]) => ts >= cutoffTs);
+            const peValues = windowPoints.map(([, pe]) => pe);
+            const stats = computePercentiles(peValues, [0.25, 0.5, 0.75]);
+            valuationBands[tf.key] = {
+              min: stats.min,
+              p25: stats.p25,
+              median: stats.p50,
+              p75: stats.p75,
+              max: stats.max,
+              sample_count: stats.count,
+            };
+          }
+        }
+      }
+
+      const result = {
+        slug,
+        company_id: companyId,
+        current_pe: currentPe,
+        valuation_bands: valuationBands,
+        peers,
+        loss_making_days_excluded: lossDaysCount,
+      };
+
+      if (this.cacheEnabled) {
+        set(cacheKey, result, TTL.VALUATION, 'json', slug);
+      }
+
+      return result;
+    } catch (err) {
+      if (this.cacheEnabled) {
+        const stale = get(cacheKey, { allowStale: true });
+        if (stale) {
+          return {
+            ...stale,
+            _cache_meta: { ...(stale._cache_meta || {}), is_stale: true },
           };
         }
       }
+      throw err;
     }
-
-    const result = {
-      slug,
-      company_id: companyId,
-      current_pe: currentPe,
-      valuation_bands: valuationBands,
-      peers,
-      loss_making_days_excluded: lossDaysCount,
-    };
-
-    if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.VALUATION, 'json', slug);
-    }
-
-    return result;
   }
 
   async getScenarioProjections(slug, { fresh = false } = {}) {
@@ -1966,11 +1981,26 @@ export class TijoriClient {
     return result;
   }
 
-  async _fetchCompanyOverviewHtml(slug, { fresh = false } = {}) {
-    const fetched = await this._fetch(`/company/${slug}/`, { fresh });
-    const html = await fetched.response.text();
-    const $ = cheerio.load(html);
-    return { $, html };
+  async _fetchCompanyOverviewHtml(slug, { fresh = false, cacheKey = null } = {}) {
+    try {
+      const fetched = await this._fetch(`/company/${slug}/`, { fresh });
+      const html = await fetched.response.text();
+      const $ = cheerio.load(html);
+      return { $, html };
+    } catch (err) {
+      if (this.cacheEnabled && cacheKey) {
+        const stale = get(cacheKey, { allowStale: true });
+        if (stale) {
+          return {
+            stale: {
+              ...stale,
+              _cache_meta: { ...(stale._cache_meta || {}), is_stale: true },
+            },
+          };
+        }
+      }
+      throw err;
+    }
   }
 
   async getCompanyTimeline(slug, { fresh = false } = {}) {
@@ -1981,7 +2011,9 @@ export class TijoriClient {
       if (cached) return cached;
     }
 
-    const { $, html } = await this._fetchCompanyOverviewHtml(slug, { fresh });
+    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+    if (overviewRes.stale) return overviewRes.stale;
+    const { $, html } = overviewRes;
 
     let keyEvents = [];
     let whatToWatch = {
@@ -2060,6 +2092,7 @@ export class TijoriClient {
 
     const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(trimmed)}+when:${numDays}d&hl=en-IN&gl=IN&ceid=IN:en`;
     let items = [];
+    let fetchError = null;
 
     try {
       const fetched = await this._fetch(rssUrl, { fresh });
@@ -2095,7 +2128,22 @@ export class TijoriClient {
           });
         }
       });
-    } catch (_) {}
+    } catch (err) {
+      fetchError = err;
+    }
+
+    if (fetchError) {
+      if (this.cacheEnabled) {
+        const stale = get(cacheKey, { allowStale: true });
+        if (stale) {
+          return {
+            ...stale,
+            _cache_meta: { ...(stale._cache_meta || {}), is_stale: true },
+            news: (stale.news || []).slice(0, numLimit),
+          };
+        }
+      }
+    }
 
     const totalFound = items.length;
     const fullResult = {
@@ -2106,7 +2154,7 @@ export class TijoriClient {
       ...(totalFound === 0 ? { note: 'No news found or RSS feed temporarily unavailable' } : {}),
     };
 
-    if (this.cacheEnabled) {
+    if (this.cacheEnabled && !fetchError) {
       set(cacheKey, fullResult, TTL.NEWS, 'json');
     }
 
@@ -2124,7 +2172,9 @@ export class TijoriClient {
       if (cached) return cached;
     }
 
-    const { $, html } = await this._fetchCompanyOverviewHtml(slug, { fresh });
+    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+    if (overviewRes.stale) return overviewRes.stale;
+    const { $, html } = overviewRes;
 
     let dividends = [];
     let splits = [];
@@ -2180,7 +2230,9 @@ export class TijoriClient {
       if (cached) return cached;
     }
 
-    const { $, html } = await this._fetchCompanyOverviewHtml(slug, { fresh });
+    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
+    if (overviewRes.stale) return overviewRes.stale;
+    const { $, html } = overviewRes;
 
     let operationalSupplierNotes = [];
     let operationalCustomerNotes = [];

@@ -64,3 +64,73 @@ test('getStockNews handles malformed XML or empty RSS gracefully without crashin
   assert.deepEqual(res.news, []);
   assert.ok(res.note);
 });
+
+test('getStockNews does not leak Tijori session cookies or CSRF token to Google News', async () => {
+  let capturedHeaders = null;
+  const mockFetch = async (url, init) => {
+    capturedHeaders = init.headers;
+    return new Response('<rss><channel></channel></rss>', { status: 200, headers: { 'content-type': 'application/rss+xml' } });
+  };
+  const client = new TijoriClient({
+    fetchFn: mockFetch,
+    cacheEnabled: false,
+    sessionPath: '/non-existent-session.json',
+  });
+  client._session = {
+    cookieHeader: 'sessionid=secret_cookie_123',
+    csrfToken: 'secret_csrf_456',
+  };
+
+  await client.getStockNews('NSE:MAHABANK');
+  assert.ok(capturedHeaders, 'Expected request headers to be captured');
+  assert.equal(capturedHeaders['Cookie'], undefined, 'Must not leak Cookie header to Google News');
+  assert.equal(capturedHeaders['X-CSRFToken'], undefined, 'Must not leak X-CSRFToken to Google News');
+});
+
+test('getStockNews falls back to stale cache on network failure and does not poison cache with empty results', async () => {
+  const query = `NSE:RELIANCE_${Date.now()}`;
+  let shouldFail = false;
+  const mockFetch = async () => {
+    if (shouldFail) {
+      throw new Error('fetch failed: ENOTFOUND news.google.com');
+    }
+    const xml = `<rss><channel><item><title>Reliance expands green energy - ET</title><link>https://example.com/r</link><pubDate>Wed, 06 Nov 2026 10:00:00 GMT</pubDate><source>ET</source></item></channel></rss>`;
+    return new Response(xml, { status: 200, headers: { 'content-type': 'application/rss+xml' } });
+  };
+
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: true });
+
+  // 1. Successful fetch populates cache
+  const first = await client.getStockNews(query);
+  assert.equal(first.total_found, 1);
+  assert.equal(first.news.length, 1);
+
+  // 2. Network fails on fresh query
+  shouldFail = true;
+  const fallback = await client.getStockNews(query, { fresh: true });
+  assert.equal(fallback.total_found, 1, 'Must return cached articles, not empty array');
+  assert.equal(fallback._cache_meta?.is_stale, true, 'Must indicate stale cache fallback');
+
+  // 3. Subsequent cached call still has the data (cache was not poisoned)
+  const cached = await client.getStockNews(query);
+  assert.equal(cached.total_found, 1, 'Cache must not be poisoned by network failure');
+});
+
+test('getCompanyTimeline falls back to stale SQLite cache on network outage', async () => {
+  const slug = `mahabank-timeline-${Date.now()}`;
+  const liveHtml = readFileSync(join(__dirname, 'fixtures', 'bank-of-maharashtra-overview.html'), 'utf-8');
+  let shouldFail = false;
+  const mockFetch = async () => {
+    if (shouldFail) throw new Error('503 Service Unavailable');
+    return new Response(liveHtml, { status: 200, headers: { 'content-type': 'text/html' } });
+  };
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: true });
+
+  const initial = await client.getCompanyTimeline(slug);
+  assert.ok(initial.key_events.length >= 1);
+
+  shouldFail = true;
+  const fallback = await client.getCompanyTimeline(slug, { fresh: true });
+  assert.equal(fallback._cache_meta?.is_stale, true, 'Must return stale timeline');
+  assert.ok(fallback.key_events.length >= 1);
+});

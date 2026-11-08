@@ -21,9 +21,9 @@ export function computePercentiles(values, percentiles = [0.25, 0.5, 0.75]) {
     return emptyStats;
   }
 
-  // Filter valid numbers and sort ascending
+  // Filter valid finite numbers and sort ascending
   const sorted = values
-    .filter((v) => typeof v === 'number' && !Number.isNaN(v))
+    .filter((v) => Number.isFinite(v))
     .sort((a, b) => a - b);
 
   const n = sorted.length;
