@@ -58,9 +58,14 @@ const METRIC_MAP = {
 function buildQuery(filters) {
   const parts = [];
   for (const [key, condition] of Object.entries(filters)) {
+    if (!condition || typeof condition !== 'object') continue;
     const metricName = METRIC_MAP[key.toLowerCase()] ?? key;
-    if (condition.min !== undefined) parts.push(`( ${metricName} > ${condition.min} )`);
-    if (condition.max !== undefined) parts.push(`( ${metricName} < ${condition.max} )`);
+    if (condition.min !== undefined && Number.isFinite(Number(condition.min))) {
+      parts.push(`( ${metricName} > ${condition.min} )`);
+    }
+    if (condition.max !== undefined && Number.isFinite(Number(condition.max))) {
+      parts.push(`( ${metricName} < ${condition.max} )`);
+    }
   }
   if (parts.length === 0) throw new Error('No valid filter conditions provided');
   return parts.join(' and ');
@@ -142,6 +147,10 @@ export class TijoriClient {
         const csrfToken = csrfCookie?.value || '';
         this._sessionMtime = stats.mtimeMs;
         this._session = { cookieHeader, csrfToken };
+        return this._session;
+      } else if (this._sessionMtime > 0) {
+        this._sessionMtime = 0;
+        this._session = { cookieHeader: '', csrfToken: '' };
         return this._session;
       }
     } catch (_) {}
@@ -389,9 +398,18 @@ export class TijoriClient {
     const companyIdMatch = html.match(/"company_id"\s*:\s*(\d+)/);
     const companyId = companyIdMatch ? parseInt(companyIdMatch[1], 10) : null;
 
+    let name = null;
+    let symbol = null;
     const metaMatch = html.match(/"company"\s*:\s*"([^"]+)"\s*,\s*"company_id"\s*:\s*\d+\s*,\s*"symbol"\s*:\s*"([^"]+)"/);
-    const name = metaMatch ? metaMatch[1] : null;
-    const symbol = metaMatch ? metaMatch[2] : null;
+    if (metaMatch) {
+      name = metaMatch[1];
+      symbol = metaMatch[2];
+    } else {
+      const nameMatch = html.match(/"company"\s*:\s*"([^"]+)"/);
+      const symbolMatch = html.match(/"symbol"\s*:\s*"([^"]+)"/);
+      name = nameMatch ? nameMatch[1] : null;
+      symbol = symbolMatch ? symbolMatch[1] : null;
+    }
 
     const final = { slug, company_id: companyId, name, symbol };
 
@@ -890,6 +908,7 @@ export class TijoriClient {
       if (text.startsWith('{"bs_s_s"') || (text.includes('"report_dates"') && text.includes('"data"'))) {
         try {
           embeddedData = JSON.parse(text);
+          return false;
         } catch (_) {}
       }
     });
@@ -1397,27 +1416,33 @@ export class TijoriClient {
       return result;
     }
 
-    const metricData = await Promise.all(targetMetrics.map(async (metric) => {
-      try {
-        const opRes = await this._fetch(`/api/v1/ind/company_op_metrics/${companyId}/${metric.metric_id}/`);
-        const data = await opRes.response.json();
-        const series = Array.isArray(data?.data) ? data.data : [];
-        const latest = series.at(-1);
-        const history = series.map(([ts, val]) => ({
-          date: new Date(ts).toISOString().slice(0, 7),
-          value: val,
-        }));
-        return {
-          name: metric.name,
-          unit: metric.unit,
-          latest_value: latest?.[1] ?? null,
-          latest_date: latest ? new Date(latest[0]).toISOString().slice(0, 7) : null,
-          history,
-        };
-      } catch (e) {
-        return { name: metric.name, unit: metric.unit, latest_value: null, error: e.message };
-      }
-    }));
+    const metricData = [];
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < targetMetrics.length; i += BATCH_SIZE) {
+      const batch = targetMetrics.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(async (metric) => {
+        try {
+          const opRes = await this._fetch(`/api/v1/ind/company_op_metrics/${companyId}/${metric.metric_id}/`);
+          const data = await opRes.response.json();
+          const series = Array.isArray(data?.data) ? data.data : [];
+          const latest = series.at(-1);
+          const history = series.map(([ts, val]) => ({
+            date: new Date(ts).toISOString().slice(0, 7),
+            value: val,
+          }));
+          return {
+            name: metric.name,
+            unit: metric.unit,
+            latest_value: latest?.[1] ?? null,
+            latest_date: latest ? new Date(latest[0]).toISOString().slice(0, 7) : null,
+            history,
+          };
+        } catch (e) {
+          return { name: metric.name, unit: metric.unit, latest_value: null, error: e.message };
+        }
+      }));
+      metricData.push(...batchResults);
+    }
 
     const result = { slug, company_id: companyId, metrics: metricData };
 

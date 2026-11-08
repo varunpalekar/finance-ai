@@ -73,3 +73,41 @@ test('getRawMaterials parses sections from raw materials page', async () => {
   assert.equal(res.rows[0].metric, 'Caustic Soda');
   assert.equal(res.rows[0].Price, '45,000');
 });
+
+test('resolveCompanyIds extracts name, symbol, and id independently regardless of key order', async () => {
+  const customHtml = `<html><body><script>
+    var meta = {"company_id": 999, "symbol": "TESTSYM", "company": "Test Enterprise Ltd"};
+  </script></body></html>`;
+  const mockFetch = createMockFetch({
+    '/company/test-enterprise/': { status: 200, body: customHtml }
+  });
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+  const res = await client.resolveCompanyIds('test-enterprise');
+  assert.equal(res.slug, 'test-enterprise');
+  assert.equal(res.company_id, 999);
+  assert.equal(res.name, 'Test Enterprise Ltd');
+  assert.equal(res.symbol, 'TESTSYM');
+});
+
+test('getOperationalMetrics processes metrics in bounded batches without failing', async () => {
+  const metricLis = Array.from({ length: 12 }, (_, i) => `<li metricid="${100 + i}" title="Metric ${i}" indent="0" onclick="company_op_metrics/888/">Metric ${i}</li>`).join('\n');
+  const customHtml = `<html><body><ul>${metricLis}</ul></body></html>`;
+  
+  const mockRoutes = {
+    '/company/multi-metric/': { status: 200, body: customHtml }
+  };
+  for (let i = 0; i < 12; i++) {
+    mockRoutes[`/api/v1/ind/company_op_metrics/888/${100 + i}/`] = {
+      status: 200,
+      body: JSON.stringify({ data: [[1719273600000, 42.5]] })
+    };
+  }
+
+  const mockFetch = createMockFetch(mockRoutes);
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+  const res = await client.getOperationalMetrics('multi-metric');
+  assert.equal(res.company_id, 888);
+  assert.equal(res.metrics.length, 12);
+  assert.equal(res.metrics[0].latest_value, 42.5);
+  assert.equal(res.metrics[11].latest_value, 42.5);
+});

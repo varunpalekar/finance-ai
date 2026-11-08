@@ -41,11 +41,14 @@ export function initDb(dbPath) {
   db = new DatabaseSync(targetPath);
   currentDbPath = targetPath;
 
+  try {
+    db.exec('PRAGMA busy_timeout = 5000;');
+  } catch (_) {}
+
   if (targetPath !== ':memory:') {
     try {
       db.exec('PRAGMA journal_mode = WAL;');
       db.exec('PRAGMA synchronous = NORMAL;');
-      db.exec('PRAGMA busy_timeout = 5000;');
     } catch (_) {}
   }
 
@@ -116,7 +119,12 @@ export function set(key, value, ttlMs, contentType = 'json', slug = null) {
   const now = Date.now();
   const fetchedAt = new Date(now).toISOString();
   const expiresAt = ttlMs === null || ttlMs === undefined ? null : now + ttlMs;
-  const valStr = contentType === 'json' ? JSON.stringify(value) : String(value);
+  let cleanValue = value;
+  if (value && typeof value === 'object' && '_cache_meta' in value) {
+    const { _cache_meta, ...rest } = value;
+    cleanValue = rest;
+  }
+  const valStr = contentType === 'json' ? JSON.stringify(cleanValue) : String(cleanValue);
 
   const stmt = database.prepare(`
     INSERT INTO http_cache (key, slug, value, content_type, fetched_at, expires_at, created_at)
