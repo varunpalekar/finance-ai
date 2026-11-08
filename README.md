@@ -122,6 +122,16 @@ A web search gives you unstructured pages. This gives Claude **structured, query
 | `screen_companies` | Run a popular screen by name (`preset`) or screen 5,000+ stocks with Tijori's full query language — `%` values, field-vs-field comparisons, arithmetic like `capex/Net Block > 0.5`, plus business-data queries (`alternate`) like `market share > 50` or `revenue from Defence > 50` |
 | `search_screener_fields` | Search the ~1,500-metric field catalog (with time-period variants like `3yr Avg ROCE`, `10Yrs ago PAT`) to find exact field names for `screen_companies` |
 
+### Perplexity Finance Research Tools
+
+| Tool | What it does |
+|---|---|
+| `get_price_movement_catalysts` | Historical price movement catalysts, narrative explanations, and source links (accepts `ticker` or `slug`) |
+| `get_brokerage_reports` | Institutional brokerage research reports with outlook (`bullish`/`neutral`/`bearish`), summaries, and direct PDF links |
+| `get_earnings_intelligence` | Consensus revenue/EPS beat %, AI earnings call highlights, and diarized transcripts |
+| `get_company_strategic_profile` | Valuation multiples (PE, Market Cap, 52W High/Low) and long-form strategic business description |
+| `get_curated_news` | Curated publisher news articles and market commentary |
+
 ---
 
 ## What's New
@@ -271,6 +281,35 @@ npm run reauth
 ```
 
 A browser window opens — log in manually and you're back.
+
+### Perplexity Finance Authentication
+
+Perplexity Finance endpoints can be accessed unauthenticated, but for heavy usage or full access:
+
+```bash
+npm run auth:pplx     # Interactive headed login (Google, Email Magic Link, Apple)
+npm run status:pplx   # Verify Perplexity session validity
+npm run reauth:pplx   # Force clear and re-authenticate Perplexity
+npm run daemon:pplx   # Run background keep-alive daemon to monitor and refresh session
+npm run test:pplx     # Run live Perplexity test suite against real endpoints
+```
+
+#### Direct Token Import (Fastest & 100% Reliable)
+If Google blocks OAuth sign-in in automated browsers (*"This browser or app may not be secure"*), you can import your existing session token directly without opening an automated browser:
+
+1. Open [perplexity.ai](https://www.perplexity.ai) in your regular browser (Chrome, Arc, Safari, Brave) where you are already signed in.
+2. Open DevTools (`Cmd + Option + I` on Mac or `F12` on Windows/Linux) → **Application** tab → **Cookies** → `https://www.perplexity.ai`.
+3. Copy the value of the cookie named **`__Secure-next-auth.session-token`**.
+4. Run:
+   ```bash
+   npm run auth:pplx -- --token "<PASTE_COPIED_TOKEN_HERE>"
+   ```
+5. The session is validated and stored in `output/perplexity_session.json` (`0o600`).
+
+#### Browser Anti-Detection & Fallbacks
+When running `npm run auth:pplx`:
+* The script automatically launches your system's installed Google Chrome with `--disable-blink-features=AutomationControlled` and masks `navigator.webdriver`.
+* If Google still blocks sign-in, click **"Continue with Email"** on Perplexity to receive a 1-click magic link, or use the direct token import above.
 
 ---
 

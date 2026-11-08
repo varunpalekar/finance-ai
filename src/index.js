@@ -1,13 +1,41 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { TijoriClient } from './client/TijoriClient.js';
+import { PerplexityClient } from './client/PerplexityClient.js';
 
 // Reserve stdout exclusively for JSON-RPC messages; divert console.log to stderr
 console.log = console.error;
 
 const client = new TijoriClient();
+const pplxClient = new PerplexityClient();
 const server = new McpServer({ name: 'tijori-finance', version: '1.0.0' });
+
+export async function resolveTicker(args, tijoriClient = client, perplexityClient = pplxClient) {
+  if (args?.ticker && typeof args.ticker === 'string' && args.ticker.trim()) {
+    const rawTicker = args.ticker.trim();
+    if (/^\d+$/.test(rawTicker)) {
+      const results = await tijoriClient.searchCompany(rawTicker).catch(() => []);
+      if (results && results[0]?.slug) {
+        const info = await tijoriClient.resolveCompanyIds(results[0].slug).catch(() => null);
+        if (info?.symbol) {
+          return perplexityClient.normalizeTicker(info.symbol);
+        }
+      }
+    }
+    return perplexityClient.normalizeTicker(rawTicker);
+  }
+  if (args?.slug && typeof args.slug === 'string' && args.slug.trim()) {
+    const info = await tijoriClient.resolveCompanyIds(args.slug.trim());
+    if (!info?.symbol) {
+      throw new Error(`No stock ticker found for slug: ${args.slug}`);
+    }
+    return perplexityClient.normalizeTicker(info.symbol);
+  }
+  throw new Error('Either ticker or slug must be provided');
+}
 
 function wrap(fn) {
   return async (args) => {
@@ -348,6 +376,101 @@ server.registerTool(
   wrap(({ slug }) => client.getSupplyChain(slug))
 );
 
+// 29. get_price_movement_catalysts (Perplexity Finance)
+server.registerTool(
+  'get_price_movement_catalysts',
+  {
+    description: 'Get historical price movement catalysts, causal explanations, and source links from Perplexity Finance. Provide ticker (e.g. HEROMOTOCO.NS, AAPL) or slug (e.g. hero-motocorp-limited).',
+    inputSchema: {
+      ticker: z.string().optional(),
+      slug: z.string().optional(),
+      limit: z.number().int().positive().optional(),
+      fresh: z.boolean().optional(),
+    },
+  },
+  wrap(async (args) => {
+    const ticker = await resolveTicker(args);
+    return pplxClient.getPriceMovementCatalysts(ticker, { limit: args.limit, fresh: args.fresh });
+  })
+);
+
+// 30. get_brokerage_reports (Perplexity Finance)
+server.registerTool(
+  'get_brokerage_reports',
+  {
+    description: 'Get institutional brokerage research reports with outlook (bullish/neutral/bearish), 2-sentence summary, and direct PDF download links from Perplexity Finance. Provide ticker or slug.',
+    inputSchema: {
+      ticker: z.string().optional(),
+      slug: z.string().optional(),
+      fresh: z.boolean().optional(),
+    },
+  },
+  wrap(async (args) => {
+    const ticker = await resolveTicker(args);
+    return pplxClient.getBrokerageReports(ticker, { fresh: args.fresh });
+  })
+);
+
+// 31. get_earnings_intelligence (Perplexity Finance)
+server.registerTool(
+  'get_earnings_intelligence',
+  {
+    description: 'Get consensus revenue/EPS surprise, AI earnings call summary highlights, and diarized transcripts from Perplexity Finance. Provide ticker or slug.',
+    inputSchema: {
+      ticker: z.string().optional(),
+      slug: z.string().optional(),
+      event_id: z.number().int().optional(),
+      include_transcript: z.boolean().optional(),
+      chapter_filter: z.enum(['prepared_remarks', 'qa', 'all']).optional(),
+      fresh: z.boolean().optional(),
+    },
+  },
+  wrap(async (args) => {
+    const ticker = await resolveTicker(args);
+    return pplxClient.getEarningsIntelligence(ticker, {
+      eventId: args.event_id,
+      includeTranscript: args.include_transcript,
+      chapterFilter: args.chapter_filter,
+      fresh: args.fresh,
+    });
+  })
+);
+
+// 32. get_company_strategic_profile (Perplexity Finance)
+server.registerTool(
+  'get_company_strategic_profile',
+  {
+    description: 'Get comprehensive company profile, valuation multiples (PE, Market Cap, 52W High/Low), and strategic business description from Perplexity Finance. Provide ticker or slug.',
+    inputSchema: {
+      ticker: z.string().optional(),
+      slug: z.string().optional(),
+      fresh: z.boolean().optional(),
+    },
+  },
+  wrap(async (args) => {
+    const ticker = await resolveTicker(args);
+    return pplxClient.getCompanyStrategicProfile(ticker, { fresh: args.fresh });
+  })
+);
+
+// 33. get_curated_news (Perplexity Finance)
+server.registerTool(
+  'get_curated_news',
+  {
+    description: 'Get curated publisher news articles and market commentary for a company from Perplexity Finance. Provide ticker or slug.',
+    inputSchema: {
+      ticker: z.string().optional(),
+      slug: z.string().optional(),
+      limit: z.number().int().positive().optional(),
+      fresh: z.boolean().optional(),
+    },
+  },
+  wrap(async (args) => {
+    const ticker = await resolveTicker(args);
+    return pplxClient.getCuratedNews(ticker, { limit: args.limit, fresh: args.fresh });
+  })
+);
+
 async function main() {
   const syncCheck = await client.validateSession({ probe: false });
   if (!syncCheck.valid) {
@@ -366,11 +489,26 @@ async function main() {
     }).catch(() => {});
   }
 
+  const pplxCheck = await pplxClient.validateSession({ probe: false });
+  if (pplxCheck.valid) {
+    pplxClient.getUserInfo().then(info => {
+      const user = info?.name || info?.username || info?.email;
+      const userStr = user ? ` as ${user}` : '';
+      const sub = info?.subscription_status ? ` (${info.subscription_status.toUpperCase()})` : '';
+      process.stderr.write(`[tijori-mcp] Perplexity connected — authenticated${userStr}${sub}.\n`);
+    }).catch(() => {
+      process.stderr.write(`[tijori-mcp] Perplexity session active.\n`);
+    });
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
 
-main().catch(err => {
-  process.stderr.write(`[tijori-mcp] Fatal: ${err.message}\n`);
-  process.exit(1);
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  main().catch(err => {
+    process.stderr.write(`[tijori-mcp] Fatal: ${err.message}\n`);
+    process.exit(1);
+  });
+}
+

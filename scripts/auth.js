@@ -80,12 +80,36 @@ async function main() {
   }
 
   console.error('Launching browser for authentication...');
-  const browser = await chromium.launch({ headless: false });
+  const baseArgs = [
+    '--disable-blink-features=AutomationControlled',
+    '--no-sandbox',
+    '--disable-infobars'
+  ];
+  const ignoreDefaultArgs = ['--enable-automation'];
+
+  let browser;
+  try {
+    browser = await chromium.launch({
+      channel: 'chrome',
+      headless: false,
+      args: baseArgs,
+      ignoreDefaultArgs
+    });
+  } catch (_) {
+    browser = await chromium.launch({
+      headless: false,
+      args: baseArgs,
+      ignoreDefaultArgs
+    });
+  }
 
   try {
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       viewport: { width: 1440, height: 900 },
+    });
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
     });
 
     await login(context);

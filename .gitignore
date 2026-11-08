@@ -10,3 +10,8 @@ benchmark.js
 # local Claude memory and internal planning docs
 .claude/
 docs/superpowers/
+
+# OS metadata
+.DS_Store
+**/.DS_Store
+
