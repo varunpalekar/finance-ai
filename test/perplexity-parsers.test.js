@@ -57,7 +57,7 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     const analysisRaw = readJson('earnings_analysis.json');
     const transcriptRaw = readJson('earnings_transcript.json');
 
-    const res = parseEarnings(earningsRaw, analysisRaw, transcriptRaw, { ticker: TICKER, includeTranscript: true });
+    const res = parseEarnings(earningsRaw, analysisRaw, transcriptRaw, { ticker: TICKER, currency: 'INR', includeTranscript: true });
 
     assert.equal(res.ticker, TICKER);
     // Live discovery: Q2 2027 is the reported quarter (id 718533), while Q3 is upcoming with null actuals
@@ -65,9 +65,13 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.fiscal_period, 'Q2');
     assert.equal(res.fiscal_year, 2027);
     assert.equal(res.consensus_comparison.actual_revenue, 145471600000);
+    assert.equal(res.consensus_comparison.actual_revenue_crores, 14547.16);
     assert.equal(res.consensus_comparison.actual_eps, 72.69);
+    assert.equal(res.consensus_comparison.currency, 'INR');
     assert.ok(Array.isArray(res.historical_quarters));
     assert.ok(res.historical_quarters.length > 0);
+    assert.equal(res.historical_quarters[1].actual_revenue, 145471600000);
+    assert.equal(res.historical_quarters[1].actual_revenue_crores, 14547.16);
     assert.ok(res.ai_highlights.length > 0);
     assert.ok(res.transcript.paragraphs.length > 0);
     assert.ok(res.transcript.paragraphs[0].speaker.length > 0);
@@ -77,10 +81,29 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.transcript.chapter_selected, 'prepared_remarks');
 
     // Test Q&A filter
-    const qaRes = parseEarnings(earningsRaw, analysisRaw, transcriptRaw, { ticker: TICKER, includeTranscript: true, chapterFilter: 'qa' });
+    const qaRes = parseEarnings(earningsRaw, analysisRaw, transcriptRaw, { ticker: TICKER, currency: 'INR', includeTranscript: true, chapterFilter: 'qa' });
     assert.equal(qaRes.transcript.chapter_selected, 'qa');
     assert.ok(qaRes.transcript.paragraphs.length > 0);
     assert.ok(qaRes.transcript.paragraphs[0].time >= 1113, 'Q&A first paragraph must be within Q&A chapter timestamp');
+  });
+
+  test('parseEarnings never converts foreign or unknown revenue into INR crores', () => {
+    const event = [{
+      id: 1,
+      currency: 'USD',
+      actualRevenue: 1_000_000_000,
+      estimatedRevenue: 900_000_000,
+      actualEps: 2,
+      estimatedEps: 1.9,
+    }];
+    const usd = parseEarnings(event, null, null, { ticker: 'AAPL' }).consensus_comparison;
+    const unknown = parseEarnings([{ ...event[0], currency: undefined }], null, null, { ticker: 'AAPL' }).consensus_comparison;
+
+    assert.equal(usd.currency, 'USD');
+    assert.equal(usd.actual_revenue, 1_000_000_000);
+    assert.equal(usd.actual_revenue_crores, null);
+    assert.equal(unknown.currency, null);
+    assert.equal(unknown.actual_revenue_crores, null);
   });
 
   test('parseEarnings gracefully degrades when analysis or transcript is null/missing (404)', () => {
@@ -90,6 +113,30 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.active_event_id, 718533);
     assert.deepEqual(res.ai_highlights, []);
     assert.equal(res.transcript, null);
+  });
+
+  test('parseEarnings does not return prepared remarks when the requested Q&A chapter is absent', () => {
+    const res = parseEarnings([{ id: 1 }], null, {
+      chapters: [{ title: 'Prepared Remarks', startTimestamp: 0, endTimestamp: 100 }],
+      paragraphs: [{ speakers: ['Management'], text: 'Prepared remarks only', time: 20 }]
+    }, { ticker: TICKER, includeTranscript: true, chapterFilter: 'qa' });
+
+    assert.equal(res.transcript.chapter_selected, 'qa');
+    assert.equal(res.transcript.chapter_available, false);
+    assert.deepEqual(res.transcript.paragraphs, []);
+  });
+
+  test('parseEarnings includes only paragraphs inside the requested chapter timestamps', () => {
+    const res = parseEarnings([{ id: 1 }], null, {
+      chapters: [
+        { title: 'Prepared Remarks', startTimestamp: 0, endTimestamp: 9 },
+        { title: 'Q&A', startTimestamp: 10, endTimestamp: 20 }
+      ],
+      paragraphs: [9, 10, 20, 21].map(time => ({ speakers: ['Speaker'], text: `Paragraph ${time}`, time }))
+    }, { ticker: TICKER, includeTranscript: true, chapterFilter: 'qa' });
+
+    assert.equal(res.transcript.chapter_available, true);
+    assert.deepEqual(res.transcript.paragraphs.map(paragraph => paragraph.time), [10, 20]);
   });
 
   test('parseProfile combines quote metadata and strategic description from authentic fixtures', () => {
@@ -102,9 +149,35 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.company_name, 'Hero MotoCorp Limited');
     assert.equal(res.exchange, 'NSE');
     assert.equal(res.currency, 'INR');
-    assert.ok(res.market_cap > 0);
+    assert.equal(res.market_cap, 1096486460916);
+    assert.equal(res.market_cap_crores, 109648.65);
+    assert.ok(res.denomination_scale.includes('Crores') || res.denomination_scale.includes('1 Cr'));
     assert.ok(res.pe_ratio > 0);
     assert.ok(res.strategic_summary.full_profile.length > 50);
+    assert.equal(res.quote_timestamp, new Date(1794131970 * 1000).toISOString());
+    assert.equal(res.data_freshness.is_stale, null);
+  });
+
+  test('parseProfile does not label foreign market cap as INR crores', () => {
+    const res = parseProfile({ currency: 'USD', marketCap: 1_000_000_000, timestamp: 100 }, null, 'AAPL');
+
+    assert.equal(res.currency, 'USD');
+    assert.equal(res.market_cap_crores, null);
+    assert.match(res.denomination_scale, /USD.*not performed/i);
+  });
+
+  test('parseReports exposes numeric targets only when source supplies structured values', () => {
+    const res = parseReports({
+      documents: [
+        { title: 'Target included', target_price: 120, currency: 'INR' },
+        { title: 'Target only in prose', summary: 'Target price is ₹120' },
+      ],
+    }, TICKER);
+
+    assert.equal(res.reports[0].target_price, 120);
+    assert.equal(res.reports[0].currency, 'INR');
+    assert.equal(res.reports[1].target_price, null);
+    assert.equal(res.reports[1].currency, null);
   });
 
   test('parseNews formats publisher news articles from authentic news.json', () => {

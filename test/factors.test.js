@@ -47,3 +47,19 @@ test('getFactorsAndBenchmarking gracefully handles company with missing factor d
   assert.deepEqual(res.formulas, []);
   assert.ok(res.note);
 });
+
+test('getFactorsAndBenchmarking keeps missing scores null instead of converting them to zero', async () => {
+  const html = `<script id="factor-radar-data">${JSON.stringify({
+    axes: [{ name: 'Growth', key: 'growth' }],
+    series: [{ data: [null] }],
+  })}</script>`;
+  const client = new TijoriClient({
+    fetchFn: createMockFetch({ '/company/no-score/factors/': { status: 200, body: html } }),
+    cacheEnabled: false,
+  });
+
+  const result = await client.getFactorsAndBenchmarking('no-score');
+
+  assert.equal(result.radar_axes[0].company_score, null);
+  assert.equal(result.radar_axes[0].peer_median, null);
+});

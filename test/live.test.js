@@ -3,18 +3,20 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { TijoriClient } from '../src/client/TijoriClient.js';
-import { get, set } from '../src/cache.js';
+import { get, initDb, set } from '../src/cache.js';
+import { probeLiveProvider } from './live-test-utils.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const sessionPath = join(__dirname, '..', 'output', 'session.json');
 
-let isOnline = false;
-try {
-  const probe = await fetch('https://www.tijorifinance.com/api/v1/ind/company_search/?q=tata', { signal: AbortSignal.timeout(3000) });
-  isOnline = probe.ok;
-} catch (_) {}
+initDb(':memory:');
+const preflight = await probeLiveProvider('https://www.tijorifinance.com/api/v1/ind/company_search/?q=tata', {
+  required: process.env.npm_lifecycle_event === 'test:live'
+});
 
-test('live integration test suite covering all 28 MCP functions with real data verification', { skip: !isOnline && 'Network unreachable or sandboxed — run npm run test:live unsandboxed' }, async (t) => {
+test('Tijori live integration contracts', {
+  skip: !preflight.available && `Live Tijori unavailable (${preflight.reason}); run npm run test:live with network access`
+}, async (t) => {
   // Use cacheEnabled: false to guarantee every test queries real live network endpoints directly
   const client = new TijoriClient({ sessionPath, cacheEnabled: false });
 
@@ -58,6 +60,8 @@ test('live integration test suite covering all 28 MCP functions with real data v
     const financials = await client.getFinancials('tata-steel-limited', 'pl');
     assert.ok(financials);
     assert.equal(financials.type, 'pl');
+    assert.equal(financials.reporting_basis, 'consolidated');
+    assert.equal(financials.currency, 'INR');
     assert.ok(financials.headers.length >= 10, 'Expected at least 10 period headers');
     assert.ok(financials.rows.length >= 10, 'Expected at least 10 line-item rows');
 
@@ -66,6 +70,24 @@ test('live integration test suite covering all 28 MCP functions with real data v
     const latestPeriod = financials.headers[financials.headers.length - 2];
     assert.ok(salesRow[latestPeriod] !== null && salesRow[latestPeriod] !== undefined, 'Sales must not be null');
     assert.ok(parseFloat(salesRow[latestPeriod]) > 100000, 'Tata Steel annual sales must exceed 100,000 Cr');
+  });
+
+  await t.test('4a. get_financials: preserves nested balance-sheet debt and cash rows', async () => {
+    const financials = await client.getFinancials('tata-steel-limited', 'bs', { basis: 'consolidated' });
+    assert.equal(financials.reporting_basis, 'consolidated');
+    const cash = financials.rows.find(row => row.metric === 'Cash & Bank Balances');
+    const loans = financials.rows.find(row => row.metric === 'Secured Loans');
+    assert.deepEqual(cash.hierarchy, ['Assets', 'Current Assets', 'Cash & Bank Balances']);
+    assert.deepEqual(loans.hierarchy, ['Liabilities', 'Non Current Liabilities', 'Secured Loans']);
+    assert.notEqual(cash[financials.headers.at(-2)], null);
+    assert.notEqual(loans[financials.headers.at(-2)], null);
+    assert.ok(Number.isFinite(Number(cash[financials.headers.at(-2)])));
+    assert.ok(Number.isFinite(Number(loans[financials.headers.at(-2)])));
+
+    const standalone = await client.getFinancials('tata-steel-limited', 'pl', { basis: 'standalone' });
+    assert.equal(standalone.reporting_basis, 'standalone');
+    assert.equal(standalone.currency, 'INR');
+    assert.ok(standalone.rows.find(row => row.metric === 'Sales'));
   });
 
   // 5. get_shareholding
@@ -79,6 +101,18 @@ test('live integration test suite covering all 28 MCP functions with real data v
     assert.ok(latestQ.Promoter > 25 && latestQ.Promoter < 45, 'Tata Steel promoter holding must be ~33%');
     assert.equal(typeof latestQ['Indian Promoters'], 'number');
     assert.equal(typeof latestQ['Public Shareholding'], 'number');
+    for (const quarter of shareholding.quarters) {
+      for (const [name, value] of Object.entries(quarter)) {
+        if (name === 'period') continue;
+        if (value === null) continue;
+        assert.ok(Number.isFinite(value), `${name} must be finite`);
+        if (/shareholders?/i.test(name)) {
+          assert.ok(value >= 0, `${name} must be a non-negative count`);
+        } else {
+          assert.ok(value >= 0 && value <= 100, `${name} holding must be a percentage`);
+        }
+      }
+    }
   });
 
   // 6. get_operational_metrics
@@ -105,8 +139,8 @@ test('live integration test suite covering all 28 MCP functions with real data v
     assert.equal(ff.years, 3);
     assert.ok(Array.isArray(ff.sources) && ff.sources.length >= 3, 'Expected at least 3 sources of cash');
     assert.ok(Array.isArray(ff.uses) && ff.uses.length >= 3, 'Expected at least 3 uses of cash');
-    assert.ok(ff.sources.every(s => typeof s.name === 'string' && typeof s.y === 'number'), 'Sources must be valid objects');
-    assert.ok(ff.uses.every(u => typeof u.name === 'string' && typeof u.y === 'number'), 'Uses must be valid objects');
+    assert.ok(ff.sources.every(s => typeof s.name === 'string' && Number.isFinite(s.y)), 'Sources must be finite numeric objects');
+    assert.ok(ff.uses.every(u => typeof u.name === 'string' && Number.isFinite(u.y)), 'Uses must be finite numeric objects');
   });
 
   // 8. get_raw_materials
@@ -195,8 +229,16 @@ test('live integration test suite covering all 28 MCP functions with real data v
     assert.ok(Array.isArray(rmix.charts) && rmix.charts.length >= 3, 'Expected at least 3 revenue charts');
     const prodChart = rmix.charts.find(c => c.title?.toLowerCase().includes('product'));
     assert.ok(prodChart, 'Expected Product Wise Break-Up chart');
-    assert.ok(prodChart.latest_breakdown.length >= 2, 'Expected multiple product segments');
-    assert.ok(prodChart.latest_breakdown.every(s => typeof s.name === 'string' && typeof s.pct === 'number'));
+    assert.ok(Array.isArray(prodChart.latest_breakdown) && prodChart.latest_breakdown.length >= 2, 'Expected multiple product segments');
+    assert.ok(prodChart.latest_breakdown.every(s =>
+      typeof s.name === 'string' && Number.isFinite(s.pct) && s.pct >= 0 && s.pct <= 100
+    ), 'Every segment must have a finite percentage between 0 and 100');
+    for (const chart of rmix.charts) {
+      for (const segment of chart.latest_breakdown ?? []) {
+        assert.ok(Number.isFinite(segment.pct) && segment.pct >= 0 && segment.pct <= 100,
+          `${chart.title}: ${segment.name} must be a finite percentage between 0 and 100`);
+      }
+    }
   });
 
   // 16. get_market_share
@@ -207,7 +249,7 @@ test('live integration test suite covering all 28 MCP functions with real data v
     assert.ok(Array.isArray(ms.metrics) && ms.metrics.length >= 1, 'Expected market share metrics');
     const crude = ms.metrics.find(m => m.metric.includes('Crude Steel'));
     assert.ok(crude, 'Expected Crude Steel market share');
-    assert.equal(typeof crude.value, 'number');
+    assert.ok(Number.isFinite(crude.value));
     assert.ok(crude.value > 5 && crude.value < 40, 'Crude Steel market share must be ~14-15%');
     assert.ok(crude.as_of);
   });
@@ -248,14 +290,23 @@ test('live integration test suite covering all 28 MCP functions with real data v
     assert.equal(get('test_clear:tata-steel-limited'), null, 'Record must be deleted after clearCache');
   });
 
+  await t.test('20a. get_user_info: reports authenticated session and subscription status', async () => {
+    const info = await client.getUserInfo({ fresh: true });
+    assert.equal(info.is_authenticated, true);
+    assert.ok(typeof info.plan_tier === 'string' && info.plan_tier.length > 0);
+    assert.equal(info.session_type, 'authenticated');
+  });
+
   // 21. get_factors_and_benchmarking
   await t.test('21. get_factors_and_benchmarking: extracts authentic radar axes and formulas for bank-of-maharashtra', async () => {
     const res = await client.getFactorsAndBenchmarking('bank-of-maharashtra');
     assert.ok(res);
     assert.equal(res.slug, 'bank-of-maharashtra');
     assert.ok(Array.isArray(res.radar_axes) && res.radar_axes.length >= 2);
-    assert.equal(typeof res.radar_axes[0].company_score, 'number');
-    assert.equal(typeof res.radar_axes[0].peer_median, 'number');
+    for (const axis of res.radar_axes) {
+      assert.ok(Number.isFinite(axis.company_score) && axis.company_score >= 0 && axis.company_score <= 10);
+      assert.ok(Number.isFinite(axis.peer_median) && axis.peer_median >= 0 && axis.peer_median <= 10);
+    }
   });
 
   // 22. get_valuation_bands
@@ -263,7 +314,8 @@ test('live integration test suite covering all 28 MCP functions with real data v
     const res = await client.getValuationBands('swaraj-engines-limited');
     assert.ok(res);
     assert.equal(res.slug, 'swaraj-engines-limited');
-    assert.equal(typeof res.current_pe, 'number');
+    assert.ok(Number.isFinite(res.current_pe));
+    assert.ok(Number.isFinite(Date.parse(res.as_of)), 'Valuation bands must have a parseable observation date');
     assert.ok(res.valuation_bands['1y']);
     assert.ok(res.valuation_bands['3y']);
     assert.ok(res.valuation_bands['5y']);
@@ -274,14 +326,14 @@ test('live integration test suite covering all 28 MCP functions with real data v
   });
 
   // 23. get_scenario_projections
-  await t.test('23. get_scenario_projections: extracts authentic Base/Bear/Bull odds and forward model for bank-of-maharashtra', async () => {
+  await t.test('23. get_scenario_projections: rejects sample scenarios for bank-of-maharashtra', async () => {
     const res = await client.getScenarioProjections('bank-of-maharashtra');
     assert.ok(res);
     assert.equal(res.slug, 'bank-of-maharashtra');
-    assert.equal(res.has_projections, true);
-    assert.equal(res.scenarios.length, 3);
-    assert.ok(res.scenarios[0].probability.includes('%'));
-    assert.ok(res.forecasts.years.length >= 4);
+    assert.equal(res.has_projections, false);
+    assert.deepEqual(res.scenarios, []);
+    assert.equal(res.forecasts, null);
+    assert.match(res.note, /sample|company-specific/i);
   });
 
   // 24. get_company_timeline

@@ -8,7 +8,7 @@ import { createMockFetch } from './mock-transport.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-test('getScenarioProjections extracts authentic Base, Bear, Bull odds and 5Y forward financial projections', async () => {
+test('getScenarioProjections rejects sample forecasts belonging to another company', async () => {
   const liveHtml = readFileSync(join(__dirname, 'fixtures', 'bank-of-maharashtra-shareholding.html'), 'utf-8');
   const mockFetch = createMockFetch({
     '/company/bank-of-maharashtra/shareholding/': { status: 200, body: liveHtml }
@@ -17,23 +17,30 @@ test('getScenarioProjections extracts authentic Base, Bear, Bull odds and 5Y for
   const res = await client.getScenarioProjections('bank-of-maharashtra');
 
   assert.equal(res.slug, 'bank-of-maharashtra');
-  assert.equal(res.has_projections, true);
+  assert.equal(res.has_projections, false);
+  assert.deepEqual(res.scenarios, []);
+  assert.equal(res.forecasts, null);
+  assert.match(res.note, /sample|company-specific/i);
+});
 
-  // Verify 3 scenarios
-  assert.equal(res.scenarios.length, 3, 'Must have Base Case, Bear Case, and Bull Case');
-  const base = res.scenarios.find(s => s.scenario.toLowerCase().includes('base'));
-  assert.ok(base, 'Expected Base Case');
-  assert.ok(base.probability.includes('%'), `Probability must contain %, got ${base.probability}`);
-  assert.ok(base.key_drivers.length > 20, 'Expected extensive qualitative key drivers');
+test('getScenarioProjections accepts a report only when its company matches the page', async () => {
+  const matchingHtml = `
+    <html><head><title>Acme Industries | Tijori</title></head><body>
+      <div class="peg-sample__company">Acme Industries</div>
+      <table class="peg-sample__table">
+        <tr><th>Scenario</th><th>Probability</th><th>Key Drivers</th></tr>
+        <tr><td>Base Case</td><td>50%</td><td>Verified company-specific base case</td></tr>
+      </table>
+    </body></html>`;
+  const client = new TijoriClient({
+    fetchFn: createMockFetch({ '/company/acme-industries/shareholding/': { body: matchingHtml } }),
+    cacheEnabled: false
+  });
 
-  // Verify forward projection table
-  assert.ok(res.forecasts);
-  assert.ok(Array.isArray(res.forecasts.years) && res.forecasts.years.length >= 4, 'Expected forward fiscal years');
-  assert.ok(Array.isArray(res.forecasts.metrics) && res.forecasts.metrics.length >= 2, 'Expected forecast metric rows');
-
-  const revMetric = res.forecasts.metrics.find(m => m.name.toLowerCase().includes('revenue'));
-  assert.ok(revMetric, 'Expected Revenue forward forecast');
-  assert.ok(revMetric.cagr !== undefined, 'Expected CAGR column');
+  const result = await client.getScenarioProjections('acme-industries');
+  assert.equal(result.has_projections, true);
+  assert.equal(result.scenarios[0].scenario, 'Base Case');
+  assert.equal(result.report_company, 'Acme Industries');
 });
 
 test('getScenarioProjections gracefully returns has_projections: false on stocks without scenario tables', async () => {

@@ -18,6 +18,7 @@ test('src/index.js exports complete 28-tool registry with correct Zod schemas an
     assert.ok(code.includes(`'${tool}'`), `Tool '${tool}' must be registered`);
   }
   assert.ok(code.includes('server.registerTool('), 'Must use official MCP SDK tool registration');
+  assert.ok(code.includes("basis: z.enum(['consolidated', 'standalone']).optional()"), 'get_financials must allow an explicit reporting basis');
 
   // Verify detailed option in get_shareholding tool schema
   assert.ok(code.includes('detailed: z.boolean().optional()'), 'get_shareholding must include detailed boolean option');

@@ -4,13 +4,13 @@ Date: 2026-11-08
 Status: Accepted
 
 ## Context
-While the base Tijori Finance MCP server successfully provided statutory financials, ratios, and basic operational metrics, autonomous equity research workflows suffered from blind spots in competitive moat benchmarking, valuation percentile bands, probabilistic scenario modeling, forward guidance, corporate actions history, and real-time financial media news. Moreover, financial scraping parsers frequently suffer from fragile DOM selection when built against synthetic mocks.
+While the base Tijori Finance MCP server successfully provided statutory financials, ratios, and basic operational metrics, autonomous equity research workflows suffered from blind spots in competitive moat benchmarking, valuation percentile bands, source-provided conditional scenarios, forward guidance, corporate actions history, and real-time financial media news. Scenario weights are source assumptions, not calibrated probabilities; see ADR 0004.
 
 ## Decision
 1. **7 New Research Tools & 1 Enhanced Tool**:
    - `get_factors_and_benchmarking`: Parses 0-10 radar moat scores against peer medians and 57 qualitative formula explanations.
    - `get_valuation_bands`: Computes 1Y, 3Y, 5Y, and 10Y continuous percentile bands (`min`, `p25`, `median`, `p75`, `max`) from daily historical P/E series, filtering out negative loss-making days, combined with a peer multiples matrix.
-   - `get_scenario_projections`: Extracts forward-looking Base, Bear, and Bull probabilistic scenarios with odds, triggers, and 5-year forward financial forecast models.
+   - `get_scenario_projections`: Extracts provider-supplied Base, Bear, and Bull conditional scenarios when they are verified as belonging to the requested company. Any weights are assumptions, not calibrated probabilities.
    - `get_company_timeline`: Extracts chronological corporate milestones (`key_events`) and "What to watch" analyst monitorables.
    - `get_stock_news`: Queries and cleans Google News RSS headlines, extracting sources, ISO timestamps, and URLs.
    - `get_corporate_actions`: Extracts historical dividends, bonus issues, stock splits, and rights offerings.
