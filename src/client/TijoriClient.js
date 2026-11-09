@@ -445,11 +445,19 @@ export class TijoriClient {
       result = {
         company_id: companyId,
         years: numYears,
+        currency: 'INR',
+        denomination: 'Crores (1 Cr = 10,000,000 INR)',
         sources: raw.data.find(d => d.name === 'sources')?.data?.[yearKey] ?? [],
         uses: raw.data.find(d => d.name === 'uses')?.data?.[yearKey] ?? [],
       };
     } else {
-      result = { company_id: companyId, years: numYears, raw };
+      result = {
+        company_id: companyId,
+        years: numYears,
+        currency: 'INR',
+        denomination: 'Crores (1 Cr = 10,000,000 INR)',
+        raw
+      };
     }
 
     if (this.cacheEnabled) {
@@ -825,12 +833,42 @@ export class TijoriClient {
       if (text.includes('company_id') && text.startsWith('{')) {
         try {
           const parsed = JSON.parse(text);
-          const { company, company_id, symbol, shortname, slug: sSlug, ind_code, is_banking, mcap, pe } = parsed;
-          Object.assign(result, { company, company_id, symbol, shortname, slug: sSlug || slug, ind_code, is_banking, mcap, pe });
+          const { company, company_id, symbol, shortname, slug: sSlug, ind_code, is_banking, mcap, pe, mcap_raw } = parsed;
+          const rawMcapVal = typeof mcap_raw === 'number'
+            ? mcap_raw
+            : (typeof mcap === 'number'
+                ? mcap
+                : (typeof mcap === 'string'
+                    ? parseFloat(mcap.replace(/[^\d.]/g, '')) || null
+                    : null));
+          const mcapCrores = rawMcapVal !== null && !isNaN(rawMcapVal) ? rawMcapVal : null;
+          const mcapInr = mcapCrores !== null ? Math.round(mcapCrores * 1e7) : null;
+
+          Object.assign(result, {
+            company,
+            company_id,
+            symbol,
+            shortname,
+            slug: sSlug || slug,
+            ind_code,
+            is_banking,
+            mcap,
+            mcap_raw: rawMcapVal,
+            mcap_crores: mcapCrores,
+            mcap_inr: mcapInr,
+            currency: 'INR',
+            denomination_scale: 'Crores (1 Cr = 10,000,000 INR)',
+            pe
+          });
           if (parsed.quick_look) result.quick_look = parsed.quick_look;
         } catch (_) {}
       }
     });
+
+    if (!result.currency) {
+      result.currency = 'INR';
+      result.denomination_scale = 'Crores (1 Cr = 10,000,000 INR)';
+    }
 
     const ratios = {};
     $('.custom_ratio').each((_, el) => {
@@ -940,7 +978,14 @@ export class TijoriClient {
           return row;
         });
 
-        const result = { type, headers: ['metric', ...periodHeaders], rows };
+        const result = {
+          type,
+          currency: 'INR',
+          denomination: 'Crores (1 Cr = 10,000,000 INR)',
+          notes: 'Amounts in ₹ Crores, ratios in %, EPS in INR per share.',
+          headers: ['metric', ...periodHeaders],
+          rows
+        };
         if (this.cacheEnabled) {
           set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
         }
@@ -990,7 +1035,14 @@ export class TijoriClient {
       rows.push(row);
     });
 
-    const result = { type, headers: ['metric', ...periodHeaders], rows };
+    const result = {
+      type,
+      currency: 'INR',
+      denomination: 'Crores (1 Cr = 10,000,000 INR)',
+      notes: 'Amounts in ₹ Crores, ratios in %, EPS in INR per share.',
+      headers: ['metric', ...periodHeaders],
+      rows
+    };
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.FINANCIALS, 'json', slug);
@@ -1780,13 +1832,22 @@ export class TijoriClient {
         if (scriptEl.length) {
           const raw = JSON.parse(scriptEl.html());
           const data = raw?.[1]?.data || [];
-          peers = data.map((p) => ({
-            name: p.name || null,
-            slug: p.slug || null,
-            mcap: p['Market Capital'] ?? null,
-            pe: typeof p.PE === 'number' ? p.PE : null,
-            latest_price: p['Latest Price'] ?? null,
-          }));
+          peers = data.map((p) => {
+            const rawMcap = p['Market Capital'] ?? null;
+            const mcapCr = typeof rawMcap === 'number'
+              ? rawMcap
+              : (rawMcap ? parseFloat(String(rawMcap).replace(/[^\d.]/g, '')) || null : null);
+            const mcapInr = mcapCr !== null ? Math.round(mcapCr * 1e7) : null;
+            return {
+              name: p.name || null,
+              slug: p.slug || null,
+              mcap: rawMcap,
+              mcap_crores: mcapCr,
+              mcap_inr: mcapInr,
+              pe: typeof p.PE === 'number' ? p.PE : null,
+              latest_price: p['Latest Price'] ?? null,
+            };
+          });
         }
       } catch (_) {}
 

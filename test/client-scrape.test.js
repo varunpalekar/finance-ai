@@ -16,6 +16,10 @@ test('getCompanyOverview parses ratios, inline script metadata, and market share
   const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
   const overview = await client.getCompanyOverview('tata-steel-limited');
   assert.equal(overview.slug, 'tata-steel-limited');
+  assert.equal(overview.currency, 'INR');
+  assert.equal(overview.mcap_crores, 180000);
+  assert.equal(overview.mcap_inr, 1800000000000);
+  assert.ok(overview.denomination_scale.includes('Crores'));
   assert.ok(overview.ratios);
   assert.equal(overview.ratios['PE Ratio'], '15.2');
   assert.ok(Array.isArray(overview.market_share));
@@ -30,6 +34,8 @@ test('getFinancials parses table rows and headers for pl', async () => {
   const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
   const fin = await client.getFinancials('tata-steel-limited', 'pl');
   assert.equal(fin.type, 'pl');
+  assert.equal(fin.currency, 'INR');
+  assert.ok(fin.denomination.includes('Crores'));
   assert.ok(Array.isArray(fin.rows));
   assert.equal(fin.rows[0].metric, 'Revenue');
   assert.equal(fin.rows[0]['FY24'], '229,171');

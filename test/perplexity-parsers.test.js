@@ -65,9 +65,13 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.fiscal_period, 'Q2');
     assert.equal(res.fiscal_year, 2027);
     assert.equal(res.consensus_comparison.actual_revenue, 145471600000);
+    assert.equal(res.consensus_comparison.actual_revenue_crores, 14547.16);
     assert.equal(res.consensus_comparison.actual_eps, 72.69);
+    assert.equal(res.consensus_comparison.currency, 'INR');
     assert.ok(Array.isArray(res.historical_quarters));
     assert.ok(res.historical_quarters.length > 0);
+    assert.equal(res.historical_quarters[1].actual_revenue, 145471600000);
+    assert.equal(res.historical_quarters[1].actual_revenue_crores, 14547.16);
     assert.ok(res.ai_highlights.length > 0);
     assert.ok(res.transcript.paragraphs.length > 0);
     assert.ok(res.transcript.paragraphs[0].speaker.length > 0);
@@ -102,7 +106,9 @@ describe('Perplexity Parsers with Real Live Fixtures', () => {
     assert.equal(res.company_name, 'Hero MotoCorp Limited');
     assert.equal(res.exchange, 'NSE');
     assert.equal(res.currency, 'INR');
-    assert.ok(res.market_cap > 0);
+    assert.equal(res.market_cap, 1096486460916);
+    assert.equal(res.market_cap_crores, 109648.65);
+    assert.ok(res.denomination_scale.includes('Crores') || res.denomination_scale.includes('1 Cr'));
     assert.ok(res.pe_ratio > 0);
     assert.ok(res.strategic_summary.full_profile.length > 50);
   });

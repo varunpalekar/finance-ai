@@ -36,6 +36,8 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
 
   const actualRev = typeof activeEvent.actualRevenue === 'number' ? activeEvent.actualRevenue : null;
   const estRev = typeof activeEvent.estimatedRevenue === 'number' ? activeEvent.estimatedRevenue : null;
+  const actualRevCr = actualRev !== null ? Number((actualRev / 1e7).toFixed(2)) : null;
+  const estRevCr = estRev !== null ? Number((estRev / 1e7).toFixed(2)) : null;
   const actualEps = typeof activeEvent.actualEps === 'number' ? activeEvent.actualEps : null;
   const estEps = typeof activeEvent.estimatedEps === 'number' ? activeEvent.estimatedEps : null;
 
@@ -47,16 +49,23 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
     ? Number((((actualEps - estEps) / Math.abs(estEps)) * 100).toFixed(2))
     : null;
 
-  const historicalQuarters = list.map(q => ({
-    id: q?.id ?? null,
-    fiscal_year: q?.fiscalYear ?? null,
-    fiscal_period: q?.fiscalPeriod ?? null,
-    date: q?.date ?? null,
-    actual_revenue: typeof q?.actualRevenue === 'number' ? q.actualRevenue : null,
-    estimated_revenue: typeof q?.estimatedRevenue === 'number' ? q.estimatedRevenue : null,
-    actual_eps: typeof q?.actualEps === 'number' ? q.actualEps : null,
-    estimated_eps: typeof q?.estimatedEps === 'number' ? q.estimatedEps : null
-  }));
+  const historicalQuarters = list.map(q => {
+    const qActualRev = typeof q?.actualRevenue === 'number' ? q.actualRevenue : null;
+    const qEstRev = typeof q?.estimatedRevenue === 'number' ? q.estimatedRevenue : null;
+    return {
+      id: q?.id ?? null,
+      fiscal_year: q?.fiscalYear ?? null,
+      fiscal_period: q?.fiscalPeriod ?? null,
+      date: q?.date ?? null,
+      actual_revenue: qActualRev,
+      actual_revenue_crores: qActualRev !== null ? Number((qActualRev / 1e7).toFixed(2)) : null,
+      estimated_revenue: qEstRev,
+      estimated_revenue_crores: qEstRev !== null ? Number((qEstRev / 1e7).toFixed(2)) : null,
+      actual_eps: typeof q?.actualEps === 'number' ? q.actualEps : null,
+      estimated_eps: typeof q?.estimatedEps === 'number' ? q.estimatedEps : null,
+      currency: 'INR'
+    };
+  });
 
   let aiHighlights = [];
   if (analysisRaw?.analysis && typeof analysisRaw.analysis === 'string') {
@@ -105,11 +114,14 @@ export function parseEarnings(earningsRaw, analysisRaw, transcriptRaw, options =
     date: activeEvent.date ?? null,
     consensus_comparison: {
       actual_revenue: actualRev,
+      actual_revenue_crores: actualRevCr,
       estimated_revenue: estRev,
+      estimated_revenue_crores: estRevCr,
       revenue_beat_percent: revBeat,
       actual_eps: actualEps,
       estimated_eps: estEps,
-      eps_beat_percent: epsBeat
+      eps_beat_percent: epsBeat,
+      currency: 'INR'
     },
     historical_quarters: historicalQuarters,
     ai_highlights: aiHighlights,
