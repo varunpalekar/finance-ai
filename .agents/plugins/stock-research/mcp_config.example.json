@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "screener": {
+      "command": "uvx",
+      "args": [
+        "--with",
+        "screener-mcp[ai]",
+        "--with",
+        "pdfplumber",
+        "screener-mcp"
+      ],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "SCREENER_USERNAME": "your_screener_email@example.com",
+        "SCREENER_PASSWORD": "your_screener_password"
+      }
+    },
+    "yfinance": {
+      "command": "uvx",
+      "args": [
+        "yfmcp@latest"
+      ],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    },
+    "agent-browser": {
+      "command": "agent-browser",
+      "args": [
+        "mcp",
+        "--tools",
+        "all"
+      ],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    },
+    "tijori-finance": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "-s",
+        "github:varunpalekar/tijori-finance-mcp#main"
+      ],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "NODE_ENV": "production",
+        "TIJORI_SESSION_PATH": ""
+      }
+    }
+  }
+}
