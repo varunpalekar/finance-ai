@@ -40,7 +40,7 @@
       "args": [
         "-y",
         "-s",
-        "github:varunpalekar/tijori-finance-mcp#main"
+        "github:varunpalekar/finance-ai#main"
       ],
       "env": {
         "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",

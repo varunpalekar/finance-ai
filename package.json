@@ -1,17 +1,18 @@
 {
-  "name": "tijori-finance-mcp",
+  "name": "finance-ai",
   "version": "1.0.0",
-  "mcpName": "io.github.LaZZy0v0/tijori-finance",
+  "mcpName": "io.github.varunpalekar/finance-ai",
   "type": "module",
-  "description": "MCP server for Tijori Finance — search, financials, operational metrics, revenue mix, market share, knowledge base and more for Indian equities.",
-  "author": "Vedant Rajmane",
+  "description": "Enterprise-grade Quad-MCP equity research engine: Tijori Finance, Perplexity Finance, Screener.in, and Yahoo Finance for AI agents.",
+  "author": "Varun Palekar",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/LaZZy0v0/tijori-finance-mcp.git"
+    "url": "https://github.com/varunpalekar/finance-ai.git"
   },
   "main": "src/index.js",
   "bin": {
+    "finance-ai": "./src/index.js",
     "tijori-finance": "./src/index.js",
     "tijori-finance-mcp": "./src/index.js"
   },

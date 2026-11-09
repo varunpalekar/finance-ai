@@ -1,22 +1,24 @@
-# Tijori Finance MCP — Claude Code instructions
+# Quad-MCP Equity Research Engine — Agent Instructions
 
-Unofficial MCP server exposing Tijori Finance (tijorifinance.com, Indian equities) to AI agents via a standalone, zero-browser native HTTP client (`TijoriClient`). **Read `docs/ARCHITECTURE.md` before changing anything non-trivial — it records the API behaviors, traps, and design decisions that were expensive to discover.**
+Enterprise-grade equity research platform and autonomous multi-agent research engine for AI agents (Antigravity, Claude Code, Cursor, OpenCode), integrating Tijori Finance (28 tools), Perplexity Finance, Screener.in, Yahoo Finance, and Agent Browser. **Read `docs/ARCHITECTURE.md` before changing anything non-trivial — it records the API behaviors, traps, and design decisions.**
 
 ## Hard rules
 
 - **Never write to stdout** in server code (`console.log`, stray prints). stdout *is* the MCP stdio channel; one stray line corrupts the protocol. In `src/index.js`, `console.log = console.error` is bound to protect stdio. Use `process.stderr.write` for diagnostics.
 - `pdf-parse` is pinned to v1.1.1 — v2.x broke the function export. Don't bump it.
 - API responses embed HTML in JSON keys (`<span>latest</span>Mcap<span>Cr</span>`) — always strip tags from keys before returning (`stripSpans` in `TijoriClient`).
-- **Never commit `.env` or session tokens**. Session credentials reside in `output/session.json` (`mode: 0o600`).
+- **Never commit `.env`, session tokens, or machine-specific paths**. Session credentials reside in `output/session.json` and `output/perplexity_session.json` (`mode: 0o600`).
+- **Fail-closed evidence validation**: All equity claims in research dossiers must be grounded in primary tool outputs or flagged as assumptions.
 
 ## Quick facts
 
-- Session cookie: `output/session.json`. 403 ⇒ tell user to run `npm run auth` (or `npm run reauth`). Client dynamically reloads credentials upon file modification without requiring an MCP server restart.
-- Zero-browser runtime: `TijoriClient` uses Node 24+ native `fetch`, Cheerio, and persistent SQLite WAL cache (`~/.cache/tijori/cache.db`).
-- Hermetic unit tests: `npm test` (25 offline tests).
-- Live integration tests: `npm run test:live` (21 live tests covering all 20 MCP tools).
-- Tijori universe: ~5,000 mainboard (server caps the count at 5000) + ~1,050 SME.
+- Sessions: `output/session.json` (Tijori) and `output/perplexity_session.json` (Perplexity). 401/403 ⇒ tell user to run `npm run auth` or `npm run auth:pplx`. Clients dynamically reload credentials without server restart.
+- Zero-browser runtime: `TijoriClient` and `PerplexityClient` use Node 24+ native `fetch`, Cheerio, and persistent SQLite WAL cache (`~/.cache/tijori/cache.db`).
+- Hermetic unit & parser tests: `npm test` (114 offline tests across parsers, SWR caching, and executor contracts).
+- Live integration tests: `npm run test:live` (Tijori live contract suite) and `npm run test:pplx` (Perplexity live contract suite).
+- Quad-MCP plugin configuration: `.agents/plugins/stock-research/mcp_config.json`.
+- Research execution: Orchestrated via `.agents/skills/stock-research-executor/SKILL.md` (8-phase due diligence).
 
 ## Working style that works here
 
-To understand an undocumented Tijori behavior: write a throwaway `explore_*.js` that drives the real site with `src/browser.js` helpers and captures network calls (or fetch the site's own JS, e.g. `filters.js`, and read it) — then **replicate exactly what the site sends, never guess params** (unknown query params are *silently ignored*, which produces wrong-but-plausible results). Delete exploration scripts after committing findings to `docs/ARCHITECTURE.md`.
+To investigate or replicate API endpoints: check recorded fixtures in `test/fixtures/`, run single targeted tests with `node --test test/<name>.test.js`, or drive live diagnostics using `scripts/auth.js` or `scripts/auth-perplexity.js`. Never guess parameters — replicate exact query parameters and headers.

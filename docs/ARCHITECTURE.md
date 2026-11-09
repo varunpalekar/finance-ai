@@ -1,163 +1,153 @@
-# Architecture & Tribal Knowledge
+# Architecture & System Design — Quad-MCP Equity Research Engine
 
-This document exists so that any future session — human or model — inherits what was learned building this server instead of re-deriving it. Most of what's below was discovered by driving the live site, capturing its network traffic, and reading its JavaScript; very little of it is guessable from the code alone.
-
-Last updated: 2026-06-14.
+This document provides architectural standards, data flows, and design decisions for the **Quad-MCP Equity Research Engine** and the underlying **Tijori & Perplexity Finance MCP Server**.
 
 ---
 
-## 1. What this is
+## 1. System Overview
 
-An **unofficial** MCP server for Tijori Finance (tijorifinance.com), a paid Indian-equities research platform. There is no public API. Everything works by impersonating a logged-in browser: a Playwright Chromium holds the user's Django session cookies and either (a) scrapes pages or (b) calls the same internal `/api/...` endpoints the site's own frontend calls.
+The project has evolved from a single-site scraper into an **enterprise-grade equity research platform and autonomous multi-agent research engine** for AI agents (Antigravity, Claude Code, Cursor, OpenCode).
 
-**The core architectural principle: the architecture is whatever the website does.** When a tool misbehaves, the fix is never to guess — it's to watch what the site sends (network capture) or read the site's own JS (`/static/js/filters.js` etc.) and replicate it exactly.
+```mermaid
+flowchart TD
+    subgraph Agents["AI Research Agents"]
+        LeadAgent["stock-research-executor (Lead Agent)"]
+        Sub1["Business & Moat Subagent"]
+        Sub2["Financial Quality & Forensics Subagent"]
+        Sub3["Governance & Valuation Subagent"]
+    end
 
+    subgraph QuadMCP["Quad-MCP Unified Intelligence Layer"]
+        Tijori["Tijori Finance MCP (28 Tools)<br/>• 6,000+ Sector KPIs<br/>• Revenue Mix & Market Share<br/>• Valuation Bands & Scenarios<br/>• Forensics Checklist (17 pts)"]
+        Pplx["Perplexity Finance MCP (Integrated)<br/>• Earnings Intelligence & Transcripts<br/>• Institutional Brokerage Reports<br/>• Price Movement Catalysts<br/>• Curated News & Profiles"]
+        Screener["Screener.in MCP (via uvx)<br/>• Statutory 10-Yr Financials<br/>• Full-Text Concalls & Filings<br/>• Peer Group Multiples"]
+        YFinance["Yahoo Finance MCP (via uvx)<br/>• Real-Time Quotes (CMP, EV, Beta)<br/>• International Equities<br/>• Analyst Estimates"]
+        AgentBrowser["Agent Browser MCP<br/>• Headless Browser Automation<br/>• Exchange Filings & Deep Web"]
+    end
+
+    subgraph Engine["Tijori & Perplexity High-Performance Core"]
+        Runtime["Zero-Browser Native Runtime (Node 24+ fetch + Cheerio)"]
+        Cache["Persistent SQLite WAL Cache (~/.cache/tijori/cache.db)"]
+        SWR["Stale-While-Revalidate (SWR) Resilient Fallback"]
+        Sessions["Dynamic Session Watcher (session.json + perplexity_session.json)"]
+    end
+
+    LeadAgent --> Sub1 & Sub2 & Sub3
+    Sub1 & Sub2 & Sub3 --> QuadMCP
+    Tijori & Pplx --> Runtime
+    Runtime --> Cache & SWR & Sessions
 ```
-Claude Desktop ⇄ stdio (JSON-RPC) ⇄ src/index.js (MCP server, 19 tools)
-                                         │
-                                   src/tools/*  ── parsers (src/parsers/*)
-                                         │
-                                   src/browser.js (ONE shared headless Chromium)
-                                         │     cookies from output/session.json
-                                   tijorifinance.com (pages + internal /api/)
-```
 
-## 2. Module map
+---
 
-| File | Role |
-|---|---|
-| `src/index.js` | MCP server; registers all tools with zod schemas. `wrap()` converts throws into `{error, message}` results. |
-| `src/browser.js` | The transport. Singleton browser + context, nav semaphore, resource blocking, `loadPage`/`withPage`/`browserFetch`/`withContext`. |
-| `src/auth.js` | Reads `output/session.json`, builds cookie/CSRF headers (for non-browser fetches). |
-| `src/cache.js` | In-memory TTL map. TTLs: FINANCIALS/SHAREHOLDING 6h, MACRO/RAW_MATERIALS 1h, METRICS 30m, MARKETS 15m, SEARCH 5m. |
-| `src/helpers.js` | `resolveCompanyIds(slug)` — regexes company_id/name/symbol out of an inline `<script>` JSON blob on the company page. |
-| `src/tools/*` | One file per domain: search, company, financials, shareholding, metrics, market, screener. |
-| `src/parsers/*` | DOM → JSON for scraped pages. |
-| `discover.js` | Auth flow (`--reauth` opens a visible browser for manual login) + endpoint discovery. |
-| `test/test_screener.js` | 26 live assertions against the real site. Run: `node test/test_screener.js`. |
-| `setup.js` / `setup.bat` / `setup.command` | Cross-platform setup wizard + double-click launchers (Windows / Mac). `.gitattributes` pins `setup.command` to LF, `setup.bat` to CRLF; the exec bit on `setup.command` is set in the git index so GitHub zips arrive runnable. |
+## 2. The Zero-Browser Core Architecture
 
-## 3. The transport layer (src/browser.js) — why it is the way it is
+Historically, the server launched headless Chromium instances via Playwright for runtime queries. This had high memory overhead (~150MB per instance), slow startup times (2-5s), and process concurrency contention.
 
-Every decision here was a response to a production failure:
+The modern architecture uses **zero-browser native execution**:
+- **`TijoriClient`**: Uses Node 24+ native `fetch` with Cheerio for HTML parsing and direct REST `/api/` calls. Zero Chromium processes run at query time.
+- **`PerplexityClient`**: Direct API transport interacting with Perplexity Finance endpoints (`timeline`, `documents`, `earnings`, `profile`, `news`) with cross-resolution for Indian (`.NS`, `.BO`) and US equities.
+- **Dynamic Session Reloading**: Automatically watches `output/session.json` and `output/perplexity_session.json`. Re-authenticating via CLI immediately updates runtime headers without server restarts.
+- **SQLite WAL Cache with SWR**: Persistent cache stored at `~/.cache/tijori/cache.db`. Provides millisecond responses, bounded memory, and Stale-While-Revalidate (SWR) fallback to ensure research subagents never fail during transient network drops.
 
-- **One browser, lazy-launched.** A cold burst of parallel tool calls used to launch several Chromiums and orphan most of them. `_initPromise` makes concurrent callers join one launch.
-- **Nav semaphore (`MAX_CONCURRENT_NAV = 3`).** A "full workup" query fans out ~7 heavy page loads; uncapped, they starve each other and all hit timeout together.
-- **`waitUntil: 'domcontentloaded'`, NEVER `'networkidle'`.** Tijori polls live prices forever; `networkidle` never fires. `'load'` was also too slow because of trackers — which is why...
-- **Resource blocking.** Images/media/fonts and trackers (mixpanel, partytown, GA, twitter embeds) are aborted at the route level. The site's own JS and `/api` XHRs pass through, so client-rendered sections still build. `context.request`/`page.request` bypass routing, so direct API fetches are unaffected.
-- **`waitFor` selector contract.** `loadPage(url, { waitFor })` returns only when the selector that the parser needs has rendered — complete data or a clear error, never a half-loaded page. Without `waitFor` it falls back to a 1.5s settle.
-- **One retry on navigation timeout**, everything else bubbles.
-- **`browserFetch(url)`** = open page on BASE_URL (so cookies are in scope), run in-page `fetch` with credentials, JSON-parse if possible. 403 ⇒ `SESSION_EXPIRED`, 404 ⇒ `NOT_FOUND`. **If it returns a string, you got an HTML error page** — treat as failure (the screener does this check).
+---
 
-## 4. Auth & session
+## 3. Registered Tool Inventory (28 Tools)
 
-- `output/session.json` is a Playwright `storageState` containing Django cookies (`sessionid`, `csrftoken`), captured by `node discover.js --reauth` (manual login in a visible browser, 3-minute window).
-- Any 403 anywhere ⇒ surface `{ error: "SESSION_EXPIRED", message: "Run: node discover.js --reauth" }`. Don't retry.
-- The browser context and `auth.js` both present the same Chrome-on-Windows User-Agent; keep them consistent — Cloudflare fronts the site.
+All 28 tools are registered in `src/index.js` using Zod input validation schemas and fail-safe result wrappers:
 
-## 5. Tool inventory (19 registered)
-
-| Tool | Mechanism |
-|---|---|
-| `search_company` | GET `/api/v1/ind/company_search/?q=` (NOT `/api/search/`) |
-| `resolve_company_ids` | scrape inline script JSON on `/company/{slug}/` |
-| `get_company_overview` | scrape `/company/{slug}/` (`.custom_ratio` selectors) |
-| `get_financials` | scrape, basis-aware section selectors (consolidated/standalone) and type-aware sections (pl/bs/cf/ratios/quarterly); recursively preserves nested metric rows and hierarchy |
-| `get_shareholding` | scrape 10-quarter table |
-| `get_operational_metrics` | GET `/api/v1/ind/company_op_metrics/{id}/{sectorId}/` |
-| `get_fund_flow` | GET `/api/v1/ind/fund_flow_analysis_data/{id}/` (returns all periods; filter by years 1/3/5/7/10) |
-| `get_raw_materials`, `get_macro_indicators`, `get_markets` | scrape tab pages; parsers carry unit + depth hierarchy + null alignment |
-| `get_sector_constituents`, `get_conglomerate_constituents` | by `tjiid` from `get_markets` |
-| `get_knowledge_base` | document URLs grouped by type |
-| `fetch_document` | PDF text via authenticated session (bypasses CDN ACLs); pdf-parse v1.1.1 pinned, its console noise redirected to stderr |
-| `get_revenue_mix`, `get_market_share` | scrape; market_share returns empty+note when a company has none (most non-lenders) instead of erroring — prevents assistant retry loops |
-| `list_popular_screens`, `screen_companies`, `search_screener_fields` | see §6 |
-
-`analyze_portfolio` is listed in the README's v2 table but is **not implemented / not registered** — documented aspiration, not code.
-
-## 6. The screener (the most nuance-dense area)
-
-### Endpoints
-
-| Endpoint | Used for | Notes |
+### 3.1 Corporate Overview & Forensic Quality
+| Tool | Mechanism / Endpoint | Description |
 |---|---|---|
-| `GET /api/filter_queries/advanced_search/` | ad-hoc screens | params: `financial`, `alternate`, `is_checked`, `whales`, `is_sme`, `columns`, `source=Basic`, `query_id=null`. Returns **ALL** matching rows, unpaginated. |
-| `GET /api/filter_queries/popular-query/results/` | presets | same params but `source=Popular` and a **real** `query_id` (server resolves the saved query; errors with `query_id=null`). |
-| `GET /api/filter_queries/filter_field_search/?q=&query_type=financials` | field catalog | empty `q` returns the full ~3,308-entry catalog: 1,561 Financials + 1,460 Products + 287 Regions. |
+| `search_company` | GET `/api/v1/ind/company_search/?q=` | Resolves query to company name and slug |
+| `resolve_company_ids` | In-line script scraping on `/company/{slug}/` | Resolves slug to numeric `company_id` |
+| `get_company_overview` | Cheerio DOM extraction (`.custom_ratio`) | Multiples (PE, PB, EV/EBITDA), ROE/ROCE, and 17-point forensic checklist |
+| `get_factors_and_benchmarking` | Cheerio DOM extraction (`#factors-table`) | Factor scores (Valuation, Quality, Growth) and percentile rankings |
 
-### Traps (each cost real debugging time)
+### 3.2 Granular Multi-Cycle Financials & Capital Allocation
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `get_financials` | Basis-aware DOM parser (`consolidated`/`standalone`) | 10-year annual and 10-quarter statements (PL, BS, Cash Flow, Ratios) |
+| `get_shareholding` | 10-quarter shareholding parser | Promoter %, FII %, DII %, Public %; `detailed: true` gives line-item mutual funds & retail tiers |
+| `get_fund_flow` | GET `/api/v1/ind/fund_flow_analysis_data/{id}/` | Cumulative sources vs uses of cash over 1, 3, 5, 7, or 10-year horizons |
+| `get_corporate_actions` | Cheerio DOM extraction | Historical dividend payouts, bonus issues, stock splits, and rights offerings |
 
-1. **Unknown query params are silently ignored.** The page URL calls the alternate query `aq`, but the API expects `alternate`. Sending `aq=` produces results that *look* right (the financial filter still applies) with the alternate filter silently dropped. This is the single most dangerous behavior in the whole API: **wrong param name = plausible wrong answer, not an error.**
-2. **Popular-screens page hrefs contain RAW newlines, spaces, and `%` signs.** `new URL(href)` *deletes* newlines per the URL spec, fusing `AND` to the next field name (`ANDROCE`) — every query parsed that way is corrupt. Parse `getAttribute('href')` manually; `decodeURIComponent` can throw on raw `%` (e.g. `ROCE > 20%`), so wrap it (`safeDecode`).
-3. **`filter_field_search` with non-empty `q` searches ONLY Financials and 404s on anything else** (`q=pharma` → 404 even though Pharmaceuticals is in the catalog). Therefore: fetch the full catalog once (empty `q`), cache 6h, search locally.
-4. **Result keys embed HTML**: `"<span>latest</span>Mcap<span>Cr</span>"`. Strip tags from keys (`stripSpans`).
-5. **The mainboard total caps at 5,000** (server-side cap on the count, ~the real universe size). SME universe is separate (~1,050), toggled by `is_sme`.
+### 3.3 Micro-Operational KPIs & Competitive Moats
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `get_operational_metrics` | GET `/api/v1/ind/company_op_metrics/{id}/{sectorId}/` | 6,000+ sector-specific unit KPIs (capacity, volumes, realizations, ARPOB, PLF) |
+| `get_revenue_mix` | Scraped product & geography tables | Multi-year percentage revenue breakdown by product line and export region |
+| `get_market_share` | DOM extraction on `/company/{slug}/` | Segment-specific market share percentages and competitor concentration |
+| `get_supply_chain` | Cheerio DOM extraction | Relational product matrix, supplier dependencies, customer concentration |
 
-### Query languages
+### 3.4 Valuation Percentile Bands & Forward Models
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `get_valuation_bands` | Daily historical P/E time series extraction | 1Y, 3Y, 5Y, and 10Y P/E statistical percentile bands (min, p25, median, p75, max) |
+| `get_scenario_projections` | Cheerio DOM forecast table parser | Probabilistic Base, Bear, and Bull 5-year financial scenarios with odds and catalysts |
 
-**Financial query** (`financial=`): exact field names from the catalog (`value` field is the literal token — `ROCE`, `3yr Avg ROCE`, `10Yrs ago PAT`); `%` values (`ROCE > 20%`); field-vs-field (`Net Sales > 3Yrs ago Net Sales`); arithmetic (`capex/Net Block > 0.5`, `1.68 * (...)`); `AND`/`and` both work; newlines ≡ spaces. Time-period variants per metric: present_val, average/cagr × 1/3/5/7/10yr, lastyear, val_Nyrs_ago, last/latest quarter, q-on-q, yoy-q.
+### 3.5 Macro, Commodities & Sector Themes
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `get_raw_materials` | Scraped `/raw-materials` dashboard | Chemicals, metals, and petrochemical spread price trends |
+| `get_macro_indicators` | Scraped `/macro` dashboard | Benchmark indicators (credit growth, IIP, GST collections, inflation) |
+| `get_markets` | Scraped `/markets` dashboard | Performance of headline indices, niche thematic baskets, and conglomerates |
+| `get_sector_constituents` | Query by `tjiid` | Constituent companies of thematic niche sector indices |
+| `get_conglomerate_constituents`| Query by `tjiid` | Group companies for major Indian conglomerates (Tata, Birla, Adani, etc.) |
 
-**Alternate (business-data) query** (`alternate=`): grammar extracted from the site's `filters.js` — relationships `makes <product>`, `revenue from <product|region> [> N]`, `market share [<entity>] > N`, `uses <product>`, `caters to <product>`, `has plant in <region>`; connectors AND/OR, modifier NOT, parens. Entity names are the catalog's Products/Regions entries (Regions: 287 — continents, countries, blocs like EMEA/SAARC, Indian states, even US cities). Entity autocomplete on the site: `filter_field_search/?q=...&query_type=alternate_data&entity_types=Products,Productsp,Regions`.
+### 3.6 Primary Documents & Real-Time News
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `get_knowledge_base` | Document catalog on `/company/{slug}/reports/` | Direct URLs for Annual Reports, Concall Transcripts, and Investor Presentations |
+| `fetch_document` | Streamed authenticated HTTP fetch + `pdf-parse` | Full-text extraction from investor PDFs directly into agent context |
+| `get_company_timeline` | Cheerio DOM timeline parser | Chronological milestone history and analyst "What to watch" guidance |
+| `get_stock_news` | Google News RSS aggregator | Recent financial media headlines and publisher articles |
 
-**Checkbox flags** → params: "Only companies with latest results" → `is_checked`, "Has Superstar investors" → `whales` (adds a `whales` column naming the holder; valid as the *only* filter), "Is SME" → `is_sme`. Values are `'True'`/`'False'` strings.
+### 3.7 Screener & Query Engine
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `screen_companies` | GET `/api/filter_queries/advanced_search/` | Multi-parameter screening combining financial and alternate business filters |
+| `list_popular_screens` | Scraped `/filter/popular-queries/` | Pre-built institutional and value query templates |
+| `search_screener_fields` | GET `/api/filter_queries/filter_field_search/` | Full 3,308-entry metric and business entity catalog search |
+| `clear_cache` | SQLite cache manager | Selective slug purge or complete cache reset |
+| `get_user_info` | Scraped `/account/subscription/` | Subscription tier and session validation status |
 
-### Design decisions in `src/tools/screener.js`
+### 3.8 Perplexity Finance Intelligence
+| Tool | Mechanism / Endpoint | Description |
+|---|---|---|
+| `get_earnings_intelligence`| Perplexity `/earnings` endpoint | Consensus surprise (revenue & EPS), AI highlights, and diarized transcripts |
+| `get_brokerage_reports` | Perplexity `/documents` endpoint | Institutional research reports with bullish/neutral/bearish outlooks and PDFs |
+| `get_price_movement_catalysts` | Perplexity `/timeline` endpoint | Historical price catalysts, causal explanations, and source links |
+| `get_company_strategic_profile`| Perplexity `/profile` endpoint | Core corporate identity, live valuation multiples, and strategic positioning |
+| `get_curated_news` | Perplexity `/news` endpoint | Curated financial publisher commentary and media sentiment |
 
-- **Progressive disclosure:** the 3,308-field catalog never enters Claude's context. `search_screener_fields` is the search handle (≤60 matches); the tool descriptions teach the query grammar by example.
-- **Cache the FULL row set per query+flags; paginate by slicing.** The API returns everything anyway, so `offset`/`limit` page from cache — "next 50" never re-hits Tijori. Truncated responses carry a note with the exact next offset.
-- **Presets must run through `popular-query/results/`** (that's what makes alternate-query presets like Monopoly Companies work). Preset matching: exact name, then substring, case-insensitive; on miss, the error lists all available names.
-- `METRIC_MAP` (~40 shorthand aliases) is a convenience for the object filter form only — any exact catalog name works in query strings.
-- DOM scrape of `/filter/popular-queries/`: walk `.popular_query_title` (category headers) and `.query_card` (name/description/Run-Query href) in document order so cards inherit their heading.
+---
 
-## 7. Context-budget philosophy (why caps exist everywhere)
+## 4. Multi-Agent Research Orchestration (`stock-research-executor`)
 
-MCP responses land in the model's context. Rules of thumb used throughout: default 50 rows (`limit`, max 500) + `total_results` + next-offset note; field search caps at 60; empty results return a note, never an error (errors make assistants retry in loops). When adding a tool, always ask "what's the worst-case response size?" — the API will happily return 1,900 rows.
+The MCP server is consumed by the **`stock-research-executor`** skill, which implements an 8-phase institutional investment due diligence workflow:
 
-## 8. Operational knowledge
+```
+Phase 1: Company Ground Truth & Scale Calibration (CMP, MCap, Reporting Basis)
+Phase 2: Industry Dynamics, Life Cycle & Competitive Structure
+Phase 3: Granular Business Disaggregation (Product & Geo Revenue Mix, Moat Radar)
+Phase 4: Multi-Cycle Financial Statement Quality & Forensics (17-point audit)
+Phase 5: Governance, Shareholding & Fund Allocation (10-Quarter Trends)
+Phase 6: Market Sentiment, Consensus Divergence & Catalysts
+Phase 7: Valuation Percentile Bands, Probabilistic Scenarios & Downside Margin
+Phase 8: Autonomous Dossier Synthesis & Evidence Verification
+```
 
-- **stdout is sacred** (stdio MCP). All diagnostics → stderr. pdf-parse's internal logging had to be redirected during parsing for exactly this reason.
-- **Claude Desktop must be fully restarted** (quit, not window-close) to pick up server code changes.
-- Windows dev box; repo also targets Mac/Linux users. Watch line endings (`.gitattributes`) and remember `git update-index --chmod=+x` for new shell scripts.
-- Exploration workflow that works: throwaway `explore_*.js` scripts using `src/browser.js` helpers to capture `page.on('request'/'response')` traffic or dump DOM; for submit logic, fetching the site's own JS (e.g. `filters.js`) and grepping it beats fighting chip-based UI widgets with Playwright. Delete the scripts after recording findings here. The user is also happy to "be the eyes" (DevTools screenshots/network captures) — often faster than headless automation.
-- Output artifacts: `output/all_screener_fields.json` is a cached dump of the full field catalog (useful for offline reference); `output/session.json` is the live session — never commit it.
+### Strict Research Guardrails
+1. **Fail-Closed Verification**: Every claim must be grounded in primary tool output; ungrounded metrics are rejected.
+2. **Unit & Currency Locking**: INR Crores, Lakhs, USD Millions, and Billions are explicitly normalized to prevent 10x/100x scale errors.
+3. **Observation Timestamps**: Data points must cite the specific fiscal period (e.g. `FY25Q3`, `FY24 Annual`) rather than vague "current" claims.
+4. **Separation of Consensus vs Actual**: Management guidance and broker targets are strictly differentiated from reported statutory financials.
 
-## 9. Known gaps / future work
+---
 
-### Resolved by live exploration (2026-06-14)
+## 5. Security, Session & Environment Governance
 
-The 5 filter tabs live at: Popular `/filter/popular-queries/`, **Stock Screener (basic)**
-`/filter/?qt=basic`, **Advanced** `/filter/?qt=advanced`, **Saved** `/filter/saved-queries/`,
-**Public** `/filter/public-queries/`.
-
-- **`Productsp` entity type — non-actionable, no work needed.** `filter_field_search`
-  **silently ignores `entity_types`** (the "unknown params ignored" trap again): passing
-  `entity_types=Productsp`, `Products`, or any combination all return the *same* unified
-  3,308-entry catalog typed only `Products` / `Financials` / `Regions`. Granular sub-products
-  (Steel Files, High Speed Steel, Steel Slab…) are **already in the `Products` list**, so
-  `search_screener_fields({ type: 'Products' })` already surfaces everything Productsp could.
-  The UI's per-relationship `entity_types` autocomplete narrowing is cosmetic; the backend
-  taxonomy is just those 3 types.
-- **Basic "Stock Screener" tab — UI sugar over `advanced_search`, not a new endpoint.**
-  `basic-filter.js` compiles its checkbox groups (financial, market, shareholding, and the
-  alternate categories `industry` / `location` / `raw_material` / `market_share`) into the
-  same `fq` (financial) + `aq` (alternate) strings the Advanced Screener uses, then submits to
-  `advanced_search`. Its "edit query" link is literally `/filter/?fq=…&aq=…`. So `screen_companies`
-  already covers it; the only thing not yet mapped is the exact checkbox→`aq`-token vocabulary
-  for industry/location/raw-material (would need a UI-driven capture to enumerate).
-- **Saved / Public Screens — endpoint FOUND** (was "no endpoints discovered yet"):
-  `GET /api/filter_queries/search/?[owner=true&]limit=&offset=`. No `owner` ⇒ **public**
-  community screens (379 of them); `owner=true` ⇒ the logged-in user's own saved screens.
-  Each row is **runnable as-is**: `{ id, name, description, financial_query, alt_query,
-  extra_cols, created_at, created_by:{id,full_name}, is_public }` — feed `financial_query`→
-  `screen_companies.filters` and `alt_query`→`alternate` (no dedicated run endpoint needed).
-  Saving a screen is `POST /api/filter_queries/create/` (CSRF-token header; write op, out of
-  scope for a read-only server). **Recommendation:** a `list_public_screens` tool (paginate
-  the 379, search by name/description locally) is genuinely additive — community-authored
-  screens you can run through the existing screener. Saved/`owner=true` is user-scoped and was
-  empty for the test account; lower value.
-
-### Still open
-
-- **`analyze_portfolio`**: in README, not in code.
-- Alternate-query entities aren't validated client-side; a typo'd product name returns empty results rather than an error (consistent with the site).
-- Industry/location/raw-material checkbox→`aq`-token mapping (from the basic tab) not enumerated — only the *mechanism* (compiles to `advanced_search`) is documented.
+- **Zero Secrets in Code**: No API keys, passwords, or personal filesystem paths are committed to git.
+- **Secure File Permissions**: Sessions stored in `output/session.json` and `output/perplexity_session.json` are written with `0o600` permissions.
+- **Standardized PATH & Isolation**: Plugin configurations utilize standard POSIX system PATHs without user-specific paths.

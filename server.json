@@ -1,16 +1,16 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.LaZZy0v0/tijori-finance",
-  "description": "Indian equity research MCP — 5,000+ NSE/BSE stocks, financials, KPIs, and concall transcripts.",
+  "name": "io.github.varunpalekar/finance-ai",
+  "description": "Enterprise-grade Indian equity research MCP — 5,000+ NSE/BSE stocks, 6,000+ operational KPIs, Perplexity Finance intelligence, financials, and concalls.",
   "repository": {
-    "url": "https://github.com/LaZZy0v0/tijori-finance-mcp",
+    "url": "https://github.com/varunpalekar/finance-ai",
     "source": "github"
   },
   "version": "1.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "tijori-finance-mcp",
+      "identifier": "finance-ai",
       "version": "1.0.0",
       "transport": {
         "type": "stdio"

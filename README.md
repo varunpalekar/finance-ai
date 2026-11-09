@@ -1,339 +1,281 @@
 <div align="center">
 
-![Tijori Finance MCP](docs/Hero.png)
+![finance-ai](docs/Hero.png)
 
-# Tijori Finance MCP
+# finance-ai
 
-**India's first MCP server for Indian equity research.**
+**Autonomous Institutional Equity Research Engine for AI Agents**
 
-Talk to 5,000+ NSE/BSE listed companies directly from Claude with India's equity research MCP
+*Unifying Tijori Finance, Perplexity Finance, Screener.in, Yahoo Finance, and Agent Browser into a Quad-MCP Intelligence Architecture.*
 
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![MCP](https://img.shields.io/badge/MCP-Compatible-5A67D8?logo=anthropic&logoColor=white)](https://modelcontextprotocol.io)
 [![License](https://img.shields.io/badge/License-MIT-F59E0B)](LICENSE)
-[![Data](https://img.shields.io/badge/Powered%20by-Tijori%20Finance-EA580C)](https://tijorifinance.com)
-[![Status](https://img.shields.io/badge/Status-Active-22C55E)]()
+[![GitHub Repository](https://img.shields.io/badge/GitHub-varunpalekar%2Ffinance--ai-blue?logo=github)](https://github.com/varunpalekar/finance-ai)
+[![Tests](https://img.shields.io/badge/Tests-114%20Passing-22C55E)](test/)
 
 </div>
 
 ---
 
+## 1. What is finance-ai?
 
-## What you can do
+Fundamental equity research has traditionally suffered from the **"Statutory Bias Fallacy"**:
+- **Statutory Platforms (Screener.in)** report balance sheets, P&Ls, and cash flow statements, but miss micro-operational unit economics.
+- **Global Feeds (Yahoo Finance)** provide quotes, beta, and consensus estimates, but lack ground-level operating KPIs and segment dynamics.
+- **Manual Research** requires hours of downloading investor presentations, earnings call transcripts, and commodity price charts.
 
-```
-"Pull Zomato's last 6 quarters of revenue and EBITDA margin, then read their
-latest concall transcript — are they hitting the targets management guided for?"
+**finance-ai** solves this by unifying four complementary intelligence layers into an autonomous, zero-browser **Quad-MCP Architecture** driven by autonomous AI research agents (Antigravity, Claude Code, Cursor, OpenCode).
 
-"Bajaj Finance's FII stake dropped 400bps last year while promoters held flat —
-pull their latest investor presentation to figure out if this is distribution or passive rotation."
+```mermaid
+flowchart TD
+    subgraph Agents["AI Research Agents"]
+        Lead["stock-research-executor (Lead Agent)"]
+        Sub1["Business Model & Moat Subagent"]
+        Sub2["Financial Quality & Forensics Subagent"]
+        Sub3["Governance & Valuation Subagent"]
+    end
 
-"Crude is up — check the raw materials data for chemical spreads, then pull
-revenue mix and operational metrics for Deepak Nitrite to see if margins are at risk."
-```
+    subgraph QuadMCP["Quad-MCP Unified Intelligence Layer"]
+        Tijori["Tijori Finance MCP (28 Tools)<br/>• 6,000+ Sector KPIs<br/>• Revenue Mix & Market Share<br/>• Valuation Bands & Scenarios<br/>• 17-Point Forensics Checklist"]
+        Pplx["Perplexity Finance Intelligence<br/>• Earnings Transcripts & Surprises<br/>• Institutional Brokerage Reports<br/>• Management Milestone Catalysts<br/>• Real-time Curated News"]
+        Screener["Screener.in MCP<br/>• Statutory 10-Yr Financial Statements<br/>• Full-Text Concall Extraction<br/>• Peer Group Multiples"]
+        YFinance["Yahoo Finance MCP<br/>• Live CMP, EV, Beta, Target Prices<br/>• International Equities Coverage"]
+        AgentBrowser["Agent Browser MCP<br/>• Interactive Filing Verification<br/>• Exchange Announcements"]
+    end
 
-<video src="https://github.com/user-attachments/assets/15e976d9-872a-494d-8aea-ce369de9cd01" controls muted autoplay loop width="100%"></video>
+    subgraph Core["High-Performance Zero-Browser Runtime"]
+        TijoriClient["TijoriClient (Node 24+ fetch + Cheerio)"]
+        PerplexityClient["PerplexityClient (REST JSON API)"]
+        Cache["Persistent SQLite WAL Cache (~/.cache/tijori/cache.db)"]
+        SWR["Stale-While-Revalidate (SWR) Offline Fallback"]
+    end
 
----
-
-> *"The goal is to turn data into information, and information into insight."*
-> — Carly Fiorina
-
----
-
-## In Action
-
-### 1 — Cross-tool deep dive: Titan
-*Revenue mix pulled first, then cross-referenced against P&L data to explain trends*
-
-![Titan — Revenue Mix × P&L](docs/demos/01-titan-revenue-pl.png)
-
----
-
-### 2 — IndiGo: P&L history
-*Full income statement history retrieved in one call — revenue, EBITDA, PAT across years*
-
-![IndiGo — P&L History](docs/demos/02-interglobe-pl.png)
-
----
-
-### 3 — Concall → Financial projection
-*Knowledge base fetched the latest earnings call transcript, Claude read it and built a forward projection model*
-
-![Concall → Financial Projection](docs/demos/05-concall-projection.png)
-
----
-
-## Why this exists
-
-Most financial MCP servers are built for US markets — Yahoo Finance, SEC filings, S&P data.
-
-**Nothing existed for India.**
-
-Tijori Finance is the most comprehensive source for Indian equity data — operational KPIs, revenue segment breakdowns, market share trends, and curated investor documents that aren't available anywhere else. This MCP server exposes all of it to Claude.
-
-| Feature | **Tijori Finance MCP** | Traditional Research | Bloomberg / Refinitiv |
-|---|---|---|---|
-| **Setup Time** | 5 minutes | Hours (Python, Excel...) | Weeks (Contracts) |
-| **Cost** | Free + Tijori subscription | Variable | $30k+/year |
-| **Indian Market Coverage** | ✅ 5,000+ NSE/BSE stocks | ❌ Fragmented / manual | ✅ |
-| **Operational KPIs** | ✅ Segment data, KPIs, market share | ❌ Manual scraping | ✅ Proprietary |
-| **Concall Transcripts** | ✅ Earnings calls, investor docs | ❌ PDF hunting | Partial |
-| **AI-Ready Output** | ✅ Structured JSON → Claude | ❌ Unstructured pages | ❌ Proprietary only |
-| **API Keys Required** | None | Multiple (OpenAI, etc.) | N/A |
-
-<details>
-<summary><strong>What makes this different from a web search?</strong></summary>
-
-A web search gives you unstructured pages. This gives Claude **structured, queryable data** — historical time series, typed fields, and consistent schemas across all 5,000+ companies. Claude can reason over it, compare across companies, and build analyses — not just summarize a webpage.
-
-</details>
-
----
-
-## Tools
-
-### v1 — Stable
-
-| Tool | What it does |
-|---|---|
-| `search_company` | Search any company by name, returns slug |
-| `get_company_overview` | Key ratios, forensics score, market cap, PE, ROE, ROCE |
-| `get_financials` | P&L, Balance Sheet, Cash Flow, Ratios, Quarterly results; optional `basis` (`consolidated` or `standalone`, default `consolidated`) |
-| `get_shareholding` | 10-quarter promoter / FII / DII / public breakdown |
-| `get_operational_metrics` | All operational KPIs with full historical time series |
-| `get_fund_flow` | Capital allocation breakdown over 1/3/5/7/10 years |
-| `get_revenue_mix` | Segment breakdown with historical trend per segment |
-| `get_market_share` | Market share % per metric with as-of date |
-| `get_knowledge_base` | Annual reports, earnings releases, investor presentations, conference calls — returns URLs grouped by type |
-| `fetch_document` | Fetch and extract full text from a PDF URL returned by `get_knowledge_base`. Reads through the authenticated session to bypass CDN access controls |
-| `get_raw_materials` | Commodity price performance — chemicals, spreads, metals |
-| `get_macro_indicators` | India macro — credit, IIP, GST, auto sales, GDP, trade |
-| `get_markets` | Index performance — Nifty, sector indices, conglomerates |
-| `get_sector_constituents` | All stocks inside a TJI niche sector index. Pass `tjiid` from `get_markets("niche")`. Returns slug, market-cap weight, and 1D–10Y price returns per stock |
-| `get_conglomerate_constituents` | All companies inside a business group. Pass `tjiid` from `get_markets("conglomerates")`. Returns slug and 1D–10Y price returns per stock |
-| `resolve_company_ids` | Resolve slug to numeric company ID |
-
-### v2 — Stable
-
-| Tool | What it does |
-|---|---|
-| `list_popular_screens` | Browse Tijori's pre-built stock screens, grouped by category, with each screen's description and underlying query |
-| `screen_companies` | Run a popular screen by name (`preset`) or screen 5,000+ stocks with Tijori's full query language — `%` values, field-vs-field comparisons, arithmetic like `capex/Net Block > 0.5`, plus business-data queries (`alternate`) like `market share > 50` or `revenue from Defence > 50` |
-| `search_screener_fields` | Search the ~1,500-metric field catalog (with time-period variants like `3yr Avg ROCE`, `10Yrs ago PAT`) to find exact field names for `screen_companies` |
-
-### Perplexity Finance Research Tools
-
-| Tool | What it does |
-|---|---|
-| `get_price_movement_catalysts` | Historical price movement catalysts, narrative explanations, and source links (accepts `ticker` or `slug`) |
-| `get_brokerage_reports` | Institutional brokerage research reports with outlook (`bullish`/`neutral`/`bearish`), summaries, and direct PDF links |
-| `get_earnings_intelligence` | Consensus revenue/EPS beat %, AI earnings call highlights, and diarized transcripts |
-| `get_company_strategic_profile` | Valuation multiples (PE, Market Cap, 52W High/Low) and long-form strategic business description |
-| `get_curated_news` | Curated publisher news articles and market commentary |
-
----
-
-## What's New
-
-### 2026-06-12 — Screener overhaul
-
-- **Alternate data queries.** The Advanced Screener's second box now works ad-hoc: `screen_companies({ alternate: "market share > 50" })` or `{ alternate: "revenue from Defence > 50", filters: "Market Capitalization > 1000" }`. Relationships: `makes`, `revenue from`, `market share`, `uses`, `caters to`, `has plant in`, combinable with AND/OR/NOT.
-- **The three screener checkboxes.** `latest_results_only` (only companies that reported the latest quarter), `superstar_investors` (only companies a whale investor holds, with the holder named per row), and `sme` (search the SME-listed universe).
-
-- **Popular screens actually run now.** `list_popular_screens` previously returned queries with the `AND` glued to the next field name (newlines in the page's links were being stripped), and dropped each screen's category, description, market-share query, and superstar-investor flag. It now returns all of those, and `screen_companies { preset: "Monopoly Companies" }` runs any of them through the same endpoint the website uses — including the ones advanced queries can't express.
-- **The advanced screener exposes Tijori's full query language.** Queries support every field in Tijori's catalog, `%` values (`ROCE > 20%`), comparisons between fields (`Net Sales > 3Yrs ago Net Sales`), and arithmetic (`capex/Net Block > 0.5`).
-- **New `search_screener_fields` tool.** Tijori has ~1,500 financial metrics once you count time-period variants (`3yr Avg ROCE`, `5yr Growth Net Sales`, `10Yrs ago PAT`…). Search the catalog to find the exact name, then use it in a query.
-- **Result caps + pagination.** Screens used to return every matching row (1,000+ for loose queries). Results are now capped at 50 by default (`limit` raises it) and `offset` pages through the rest — "show me the next 50" is served instantly from cache without re-querying Tijori. `total_results` always reports the full count.
-
-### 2026-06-10 — Reliability & performance
-
-- **Long, multi-tool queries no longer time out.** Asking for a full workup in one go — e.g. *"build a model for MTAR: overview + financials + concall + revenue mix + operational KPIs"* — used to overwhelm the browser and fail with `page.goto: Timeout` errors. Page loads are now faster (ads, trackers and images are skipped), capped to a safe number of concurrent loads, and retried once on a transient timeout. Tools also wait for the actual data to render rather than a fixed delay, so you get complete results instead of half-loaded ones.
-- **Fixed a startup browser leak.** A burst of parallel tool calls on a cold start could spin up several Chromium instances and leave most of them orphaned. It now launches exactly one and shares it.
-- **`get_market_share` returns cleanly when there's no data.** For companies that simply have no market-share metrics (most non-lenders), it now returns an empty result with a note instead of erroring — which previously made the assistant retry the same call in a loop.
-
----
-
-## Setup
-
-### Requirements
-
-- [Node.js v18+](https://nodejs.org) — install the **LTS** version
-- A [Tijori Finance](https://tijorifinance.com) account — free account works but has data limits; **Pro recommended** for full access
-- [Claude Desktop](https://claude.ai/download)
-
----
-
-### Option 1 — Wizard (recommended)
-
-The setup script handles everything automatically: installs packages, downloads the browser, authenticates, and writes the Claude Desktop config for you.
-
-**Windows**
-
-1. [Download Node.js](https://nodejs.org) and install it (choose LTS)
-2. [Download Claude Desktop](https://claude.ai/download) and install it
-3. [Download this repo](https://github.com/LaZZy0v0/tijori-finance-mcp/archive/refs/heads/master.zip) and unzip it anywhere
-4. Double-click **`setup.bat`** inside the folder
-5. Follow the prompts — enter your Tijori email/password, then log in through the browser window that opens
-6. **Fully quit and reopen Claude Desktop**
-
-**Mac**
-
-1. [Download Node.js](https://nodejs.org) and install it (choose LTS)
-2. [Download Claude Desktop](https://claude.ai/download) and install it
-3. [Download this repo](https://github.com/LaZZy0v0/tijori-finance-mcp/archive/refs/heads/master.zip) and unzip it anywhere
-4. Double-click **`setup.command`** inside the folder — if macOS blocks it ("unidentified developer"), right-click the file and choose **Open** the first time
-5. Follow the prompts — enter your Tijori email/password, then log in through the browser window that opens
-6. **Fully quit and reopen Claude Desktop** (Cmd+Q, not just closing the window)
-
-**Linux (or any terminal)**
-
-```bash
-git clone https://github.com/LaZZy0v0/tijori-finance-mcp.git
-cd tijori-finance-mcp
-node setup.js
+    Lead --> Sub1 & Sub2 & Sub3
+    Sub1 & Sub2 & Sub3 --> QuadMCP
+    Tijori & Pplx --> Core
+    Core --> TijoriClient & PerplexityClient
+    TijoriClient & PerplexityClient --> Cache & SWR
 ```
 
-Follow the prompts, then fully quit and reopen Claude Desktop.
+---
+
+## 2. Strategic Capabilities
+
+1. **6,000+ Sector-Specific Operational KPIs**: Unlocks production capacity, volumes, realizations, plant utilization, ARPOB, and PLF that never appear in statutory P&L filings.
+2. **Multi-Year Market Share & Segment Revenue Mix**: Tracks whether a business is winning or losing dominance across industry micro-segments over an entire business cycle (5–10 years).
+3. **Forensic Accounting Checklist**: 17 audited checks classified into Healthy, Neutral, and Red Flags covering revenue recognition, auditor turnover, promoter pledging, and debt stress.
+4. **Institutional Brokerage Reports & Concall Transcripts**: Full text from earnings call Q&A chapters and institutional broker notes with sentiment and target prices.
+5. **Statistical Valuation Bands & Probabilistic Scenarios**: 1Y, 3Y, 5Y, and 10Y P/E percentile bands (min, p25, median, p75, max) paired with Base, Bear, and Bull forecast models.
+6. **Input Commodity Price Spreads**: Maps raw material commodity benchmarks (polymer spreads, steel, caustic soda, crude) to corporate gross margins.
+7. **Capital Allocation Fund Flows**: Audits how management allocated cash across CapEx, debt retirement, acquisitions, and dividends over 1, 3, 5, 7, and 10-year horizons.
 
 ---
 
-### Option 2 — Manual
+## 3. Autonomous Multi-Agent Research Skill
 
-For those who want to see exactly what each step does.
+**finance-ai** includes the **`stock-research-executor`** skill, which autonomous AI agents invoke to conduct comprehensive 8-phase investment due diligence:
 
-**1. Clone and set credentials**
-
-```bash
-# Mac / Linux
-git clone https://github.com/LaZZy0v0/tijori-finance-mcp.git
-cd tijori-finance-mcp
-cp .env.example .env
-
-# Windows
-git clone https://github.com/LaZZy0v0/tijori-finance-mcp.git
-cd tijori-finance-mcp
-copy .env.example .env
+```
+Phase 1: Company Ground Truth & Scale Calibration (CMP, MCap, Reporting Basis)
+Phase 2: Industry Dynamics, Life Cycle & Competitive Structure
+Phase 3: Granular Business Disaggregation (Product & Geo Mix, Moat Radar)
+Phase 4: Multi-Cycle Financial Statement Quality & Forensics (17-point audit)
+Phase 5: Governance, Shareholding & Fund Allocation (10-Quarter Trends)
+Phase 6: Market Sentiment, Consensus Divergence & Price Catalysts
+Phase 7: Valuation Percentile Bands, Probabilistic Scenarios & Downside Margin
+Phase 8: Autonomous Dossier Synthesis & Evidence Verification
 ```
 
-Open `.env` in any text editor and fill in your Tijori credentials:
+### Institutional Research Guardrails
+- **Fail-Closed Evidence Grounding**: Every metric and assertion must be sourced from authentic tool outputs; unsupported extrapolations are flagged as assumptions.
+- **Scale & Currency Calibration**: Prevents scale errors by standardizing units (INR Crores vs Lakhs vs USD Millions/Billions).
+- **Consensus vs. Statutory Separation**: Explicitly separates management guidance and broker forecasts from reported statutory statements.
 
-```env
-TIJORI_EMAIL=your@email.com
-TIJORI_PASSWORD=yourpassword
-```
+---
 
-**2. Install packages and browser**
+## 4. Quick Start & Integration
 
-```bash
-npm install
-npx playwright install chromium
-```
+### Option A — Antigravity Agent Plugin (Recommended)
 
-`npm install` downloads the Node.js dependencies. `playwright install chromium` downloads a ~150 MB Chromium browser used to maintain your Tijori session — one-time only.
-
-**3. Authenticate**
-
-```bash
-npm run auth
-```
-
-A browser window opens at the Tijori Finance sign-in page. Log in as you normally would. Once logged in, the window closes automatically. Your session is saved securely to `output/session.json` (`mode: 0o600`).
-
-**4. Configure Claude Desktop**
-
-Find your config file and add the block below. The path to `src/index.js` **must be absolute**.
-
-| OS | Config file location |
-|---|---|
-| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
-| Mac | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+The repository provides a pre-configured plugin at [`.agents/plugins/stock-research/mcp_config.json`](file:///.agents/plugins/stock-research/mcp_config.json) that immediately exposes the entire Quad-MCP toolset to Antigravity without local path hardcoding:
 
 ```json
 {
   "mcpServers": {
+    "screener": {
+      "command": "uvx",
+      "args": ["--with", "screener-mcp[ai]", "--with", "pdfplumber", "screener-mcp"],
+      "env": { "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" }
+    },
+    "yfinance": {
+      "command": "uvx",
+      "args": ["yfmcp@latest"],
+      "env": { "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" }
+    },
+    "agent-browser": {
+      "command": "agent-browser",
+      "args": ["mcp", "--tools", "all"],
+      "env": { "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin" }
+    },
     "tijori-finance": {
-      "command": "node",
-      "args": ["C:/Users/yourname/tijori-finance-mcp/src/index.js"]
+      "command": "npx",
+      "args": ["-y", "-s", "github:varunpalekar/finance-ai#main"],
+      "env": {
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin",
+        "NODE_ENV": "production"
+      }
     }
   }
 }
 ```
 
-**5. Fully quit and reopen Claude Desktop**
+### Option B — Remote Execution via NPX (Claude Desktop / Cursor)
 
----
+You can run `finance-ai` directly without cloning the repository:
 
-### Test it
+```json
+{
+  "mcpServers": {
+    "finance-ai": {
+      "command": "npx",
+      "args": ["-y", "-s", "github:varunpalekar/finance-ai#main"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
+```
 
-> *"Search Tata Steel using Tijori MCP"*
-
-If Claude returns a result, you're connected.
-
----
-
-## Session expiry
-
-Tijori sessions expire periodically. When tools stop working:
+### Option C — Local Clone & Development
 
 ```bash
+git clone https://github.com/varunpalekar/finance-ai.git
+cd finance-ai
+npm install
+npm test
+```
+
+---
+
+## 5. Authentication & Session Governance
+
+`finance-ai` uses a **zero-browser runtime** during queries. Interactive login is completed once via CLI to capture session cookies into local, secured files (`0o600`):
+
+```bash
+# Authenticate Tijori Finance (headed browser login)
+npm run auth
+
+# Re-authenticate Tijori Finance
 npm run reauth
+
+# Authenticate Perplexity Finance
+npm run auth:pplx
+
+# Check Perplexity session health
+npm run status:pplx
 ```
 
-A browser window opens — log in manually and you're back.
+### Dynamic Session Reloading
+Runtime clients automatically reload credentials whenever `output/session.json` or `output/perplexity_session.json` are refreshed, requiring zero server restarts.
 
-### Perplexity Finance Authentication
+---
 
-Perplexity Finance endpoints can be accessed unauthenticated, but for heavy usage or full access:
+## 6. Complete Tool Directory (28 Tools)
+
+### Corporate Overview & Forensics
+| Tool | Description |
+| :--- | :--- |
+| `search_company` | Search companies by name or symbol; returns standardized slug |
+| `resolve_company_ids` | Resolves slug to numeric `company_id` for backend fund flow routes |
+| `get_company_overview` | Valuation multiples (PE, PB, EV/EBITDA), return ratios (ROE, ROCE), and 17-point forensic checklist |
+| `get_factors_and_benchmarking` | Factor scores (Valuation, Quality, Growth) with percentile rankings |
+| `get_user_info` | Subscription tier and active session validation status |
+| `clear_cache` | Selective slug cache invalidation or complete SQLite cache purge |
+
+### Multi-Cycle Financial Statements & Capital Allocation
+| Tool | Description |
+| :--- | :--- |
+| `get_financials` | 10-year annual and 10-quarter statutory statements (PL, BS, Cash Flow, Ratios) with consolidated/standalone selector |
+| `get_shareholding` | 10-quarter promoter, FII, DII, and retail ownership trends; `detailed: true` exposes line-item mutual funds & retail tiers |
+| `get_fund_flow` | Cumulative Sources vs Uses of Cash over 1, 3, 5, 7, or 10-year horizons |
+| `get_corporate_actions` | Historical dividend payouts, bonus issues, stock splits, and rights offerings |
+
+### Operational KPIs & Competitive Moats
+| Tool | Description |
+| :--- | :--- |
+| `get_operational_metrics` | Complete time series of 6,000+ sector-specific unit KPIs (capacity, volume, realizations, ARPOB, PLF) |
+| `get_revenue_mix` | Multi-year percentage distribution across product categories or geographic markets |
+| `get_market_share` | Micro-segment market share percentage and competitor concentration |
+| `get_supply_chain` | Product matrix, supplier monitorables, and customer concentration |
+
+### Valuation Bands & Probabilistic Scenarios
+| Tool | Description |
+| :--- | :--- |
+| `get_valuation_bands` | Statistical 1Y, 3Y, 5Y, and 10Y P/E percentile bands (min, p25, median, p75, max) |
+| `get_scenario_projections` | Base, Bear, and Bull probabilistic scenarios with odds, triggers, and 5-year forecast models |
+
+### Macro Indicators, Raw Materials & Themes
+| Tool | Description |
+| :--- | :--- |
+| `get_raw_materials` | Input commodity price series for chemicals, metals, and petrochemical spreads |
+| `get_macro_indicators` | Macroeconomic benchmark indicators (credit growth, IIP, GST collections, inflation) |
+| `get_markets` | Performance of headline indices, niche thematic indices, and Indian conglomerate baskets |
+| `get_sector_constituents` | Constituent companies of thematic niche indices (EMS, Defence, Railways) |
+| `get_conglomerate_constituents` | Group company listings for major Indian business houses (Tata, Birla, Adani, etc.) |
+
+### Primary Documents & Real-Time News
+| Tool | Description |
+| :--- | :--- |
+| `get_knowledge_base` | Document catalog for Annual Reports, Investor Presentations, and Concall Transcripts |
+| `fetch_document` | Full-text extraction from investor PDFs directly into agent context |
+| `get_company_timeline` | Chronological milestone timeline and analyst "What to watch" monitorables |
+| `get_stock_news` | Google News RSS aggregator for real-time financial press coverage |
+
+### Screener & Query Engine
+| Tool | Description |
+| :--- | :--- |
+| `screen_companies` | Multi-parameter screening combining financial and alternate business filters |
+| `list_popular_screens` | Pre-built institutional and value query templates |
+| `search_screener_fields` | Full 3,308-entry metric and business entity catalog search |
+
+### Perplexity Finance Intelligence
+| Tool | Description |
+| :--- | :--- |
+| `get_earnings_intelligence` | Consensus revenue/EPS surprises, AI highlights, and diarized concall transcripts |
+| `get_brokerage_reports` | Institutional research reports with outlooks (bullish/neutral/bearish) and PDF downloads |
+| `get_price_movement_catalysts` | Historical price catalysts, causal explanations, and source links |
+| `get_company_strategic_profile` | Comprehensive company profile, live valuation multiples, and strategic business description |
+| `get_curated_news` | Curated publisher news articles and market sentiment |
+
+---
+
+## 7. Development & Testing
+
+The server maintains a comprehensive test suite covering parsers, HTTP clients, SQLite WAL caching, and executor contracts:
 
 ```bash
-npm run auth:pplx     # Interactive headed login (Google, Email Magic Link, Apple)
-npm run status:pplx   # Verify Perplexity session validity
-npm run reauth:pplx   # Force clear and re-authenticate Perplexity
-npm run daemon:pplx   # Run background keep-alive daemon to monitor and refresh session
-npm run test:pplx     # Run live Perplexity test suite against real endpoints
+# Run all 114 hermetic unit & contract tests
+npm test
+
+# Run live Tijori integration suite (requires active session)
+npm run test:live
+
+# Run live Perplexity integration suite (requires active session)
+npm run test:pplx
 ```
 
-#### Direct Token Import (Fastest & 100% Reliable)
-If Google blocks OAuth sign-in in automated browsers (*"This browser or app may not be secure"*), you can import your existing session token directly without opening an automated browser:
-
-1. Open [perplexity.ai](https://www.perplexity.ai) in your regular browser (Chrome, Arc, Safari, Brave) where you are already signed in.
-2. Open DevTools (`Cmd + Option + I` on Mac or `F12` on Windows/Linux) → **Application** tab → **Cookies** → `https://www.perplexity.ai`.
-3. Copy the value of the cookie named **`__Secure-next-auth.session-token`**.
-4. Run:
-   ```bash
-   npm run auth:pplx -- --token "<PASTE_COPIED_TOKEN_HERE>"
-   ```
-5. The session is validated and stored in `output/perplexity_session.json` (`0o600`).
-
-#### Browser Anti-Detection & Fallbacks
-When running `npm run auth:pplx`:
-* The script automatically launches your system's installed Google Chrome with `--disable-blink-features=AutomationControlled` and masks `navigator.webdriver`.
-* If Google still blocks sign-in, click **"Continue with Email"** on Perplexity to receive a 1-click magic link, or use the direct token import above.
-
 ---
 
-## How it works
+## 8. License & Disclaimer
 
-The server runs on a zero-browser native architecture using `TijoriClient`, powered by Node 24+ native `fetch` and Cheerio. Interactive authentication is run once via `npm run auth` (which uses a headed browser gateway to capture session cookies into `output/session.json` with `mode: 0o600`).
+MIT License. See [LICENSE](LICENSE) for details.
 
-At runtime, no browser processes are spawned:
-- **Instant Response Times**: REST and server-rendered HTML endpoints are queried directly with <200ms latency.
-- **Persistent SQLite Cache**: Cached responses are saved in `~/.cache/tijori/cache.db` with WAL mode and SWR (stale-while-revalidate) offline fallback.
-- **Dynamic Session Reloading**: Updating `session.json` refreshes authentication credentials without restarting the MCP server.
-
-![Architecture](docs/Arch.png)
-
----
-
-## Disclaimer
-
-This project is not affiliated with Tijori Finance. It requires your own paid Tijori Finance subscription. Use for personal research only — do not redistribute the underlying data.
-
----
+This project is not affiliated with Tijori Finance or Perplexity AI. It requires your own valid accounts. Use for personal and institutional equity research only — do not redistribute underlying proprietary data.
 
 <div align="center">
 
-*Built with [Model Context Protocol](https://modelcontextprotocol.io) · Data from [Tijori Finance](https://tijorifinance.com)*
+*Built for AI Agents · Powered by Model Context Protocol*
 
 </div>
