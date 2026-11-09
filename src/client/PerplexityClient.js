@@ -8,8 +8,8 @@ import { parseProfile } from '../parsers/perplexity/profile.js';
 import { parseNews } from '../parsers/perplexity/news.js';
 
 const KNOWN_US_TICKERS = new Set([
-  'AAPL', 'MSFT', 'GOOG', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'BRK.A', 'BRK.B',
-  'JPM', 'V', 'JNJ', 'WMT', 'PG', 'UNH', 'HD', 'MA', 'DIS', 'NFLX', 'INTC', 'AMD'
+  'AAPL', 'MSFT', 'GOOG', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'COIN', 'BRK.A', 'BRK.B',
+  'JPM', 'V', 'JNJ', 'WMT', 'PG', 'UNH', 'HD', 'MA', 'DIS', 'NFLX', 'INTC', 'AMD', 'CRM'
 ]);
 
 export class PerplexityClient {
@@ -163,7 +163,7 @@ export class PerplexityClient {
   }
 
   async fetchJson(endpoint, options = {}) {
-    const { fresh = false, ttl = null, cacheKey: customCacheKey = null } = options;
+    const { fresh = false, ttl = null, cacheKey: customCacheKey = null, includeCacheMeta = false } = options;
     const cKey = customCacheKey || (endpoint.startsWith('pplx:') ? endpoint : null);
 
     if (!fresh && cKey) {
@@ -212,8 +212,18 @@ export class PerplexityClient {
       }
 
       const data = await res.json();
+      const fetchedAt = Date.now();
       if (cKey && ttl !== null) {
         set(cKey, data, ttl, 'json');
+      }
+      if (includeCacheMeta && data && typeof data === 'object') {
+        data._cache_meta = {
+          is_cached: false,
+          is_stale: false,
+          fetched_at: new Date(fetchedAt).toISOString(),
+          expires_at: ttl === null ? null : new Date(fetchedAt + ttl).toISOString(),
+          permanent: false,
+        };
       }
       return data;
     })();
@@ -291,7 +301,8 @@ export class PerplexityClient {
   }
 
   async _queryWithUsFallback(ticker, fn) {
-    const norm = this.normalizeTicker(ticker);
+    const rawTicker = ticker.trim().toUpperCase();
+    const norm = rawTicker.endsWith('.US') ? rawTicker.slice(0, -3) : this.normalizeTicker(rawTicker);
     try {
       return await fn(norm);
     } catch (err) {
@@ -345,6 +356,7 @@ export class PerplexityClient {
       if (!activeEvent || !activeEvent.id) {
         return parseEarnings(earningsRaw, null, null, {
           ticker: normTicker,
+          currency: this._currencyForTicker(normTicker),
           eventId: options.eventId,
           includeTranscript: false
         });
@@ -387,6 +399,7 @@ export class PerplexityClient {
 
       return parseEarnings(earningsRaw, analysisRaw, transcriptRaw, {
         ticker: normTicker,
+        currency: this._currencyForTicker(normTicker),
         eventId,
         includeTranscript,
         chapterFilter
@@ -402,7 +415,12 @@ export class PerplexityClient {
       const descCacheKey = this.cacheKey('profile_description', normTicker);
 
       const [quoteRes, descRes] = await Promise.allSettled([
-        this.fetchJson(quoteEndpoint, { fresh: options.fresh, ttl: 2 * 3600 * 1000, cacheKey: quoteCacheKey }),
+        this.fetchJson(quoteEndpoint, {
+          fresh: options.fresh,
+          ttl: 2 * 3600 * 1000,
+          cacheKey: quoteCacheKey,
+          includeCacheMeta: true,
+        }),
         this.fetchText(descEndpoint, { fresh: options.fresh, ttl: 7 * 86400 * 1000, cacheKey: descCacheKey })
       ]);
 
@@ -415,6 +433,12 @@ export class PerplexityClient {
 
       return parseProfile(quoteRaw, descRaw, normTicker);
     });
+  }
+
+  _currencyForTicker(ticker) {
+    if (ticker.endsWith('.NS') || ticker.endsWith('.BO')) return 'INR';
+    if (KNOWN_US_TICKERS.has(ticker)) return 'USD';
+    return null;
   }
 
   async getCuratedNews(ticker, options = {}) {

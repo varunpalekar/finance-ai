@@ -25,18 +25,22 @@ describe('Stock Research Executor Quad-MCP Contract Suite', () => {
       assert.match(content, new RegExp(`\\b[Gg]${i}\\b`), `Must contain Gate G${i}`);
     }
 
-    // Directional prediction check
-    assert.ok(content.includes('EV_{\\text{return}}') || content.includes('EV_{return}') || content.includes('Upward Bias'), 'Must contain directional prediction rules');
+    assert.ok(content.includes('heuristic'), 'Must label directional scores as heuristics');
+    assert.ok(content.includes('INSUFFICIENT_DATA'), 'Must fail closed when evidence is insufficient');
+    assert.ok(!content.includes('probability-weighted expected return'), 'Must not require an uncalibrated expected return');
+    assert.ok(!content.includes('zero tolerance for financial'), 'Must not promise zero-error research');
     assert.ok(!content.includes('audio_url'), 'Must not require audio_url in citations');
   });
 
-  test('instructions.md defines Step 0 Ground Truth schema, Templates A & B, and Directional Engine', () => {
+  test('instructions.md defines source-grounded Step 0 and Templates A & B', () => {
     const content = fs.readFileSync(path.join(SKILL_DIR, 'instructions.md'), 'utf8');
 
     // Ground truth JSON schema extensions
-    assert.ok(content.includes('pe_bands'), 'Must include pe_bands in ground_truth.json schema');
-    assert.ok(content.includes('moat_radar_overall_score'), 'Must include moat_radar_overall_score');
-    assert.ok(content.includes('scenario_probabilities'), 'Must include scenario_probabilities');
+    assert.ok(content.includes('"observations"'), 'Ground truth must store sourced observations');
+    assert.ok(!content.includes('moat_radar_overall_score'), 'Must not invent an aggregate moat score');
+    assert.ok(content.includes('source_timestamp'), 'Ground truth must record source timestamps');
+    assert.ok(content.includes('reporting_basis'), 'Ground truth must record financial reporting basis');
+    assert.ok(content.includes('currency'), 'Ground truth must record currency');
 
     // Template A & B checks
     assert.ok(content.includes('get_supply_chain'), 'Template A must include get_supply_chain');
@@ -45,10 +49,10 @@ describe('Stock Research Executor Quad-MCP Contract Suite', () => {
     assert.ok(content.includes('get_valuation_bands'), 'Template B must include get_valuation_bands');
     assert.ok(content.includes('get_scenario_projections'), 'Template B must include get_scenario_projections');
 
-    // Directional engine checks
-    assert.ok(content.includes('Upward Bias') || content.includes('Up-Move'), 'Must define Upward Bias');
-    assert.ok(content.includes('Downward Pressure') || content.includes('Down-Move'), 'Must define Downward Pressure');
-    assert.ok(content.includes('Dynamic Coverage') || content.includes('Active Vectors'), 'Must define Dynamic Coverage Normalizer');
+    assert.ok(content.includes('INSUFFICIENT_DATA'), 'Must define insufficient-data behavior');
+    assert.ok(content.includes('calibrat'), 'Must distinguish estimates from calibrated forecasts');
+    assert.ok(!content.includes('synthesize scenario odds'), 'Must not invent scenario probabilities');
+    assert.ok(!content.includes('probability-weighted expected return'), 'Must not require uncalibrated expected returns');
     assert.ok(!content.includes('audio_url'), 'Must not require audio_url');
   });
 
@@ -84,18 +88,18 @@ describe('Stock Research Executor Quad-MCP Contract Suite', () => {
     assert.ok(content.includes('get_valuation_bands'), 'Phase 7 must include get_valuation_bands');
     assert.ok(content.includes('get_earnings_intelligence'), 'Phase 7 must include get_earnings_intelligence');
 
-    // Phase 8 Directional Synthesis
-    assert.ok(content.includes('Directional Prediction') || content.includes('Upward Bias'), 'Phase 8 must include Directional Synthesis');
+    assert.ok(content.includes('INSUFFICIENT_DATA') || content.includes('evidence summary'), 'Phase 8 must report gaps instead of force-fitting a prediction');
   });
 
-  test('examples.md includes Moat Radar, Scenario Models, and Directional Prediction tables', () => {
+  test('examples.md labels mock data and demonstrates conditional analysis', () => {
     const content = fs.readFileSync(path.join(SKILL_DIR, 'examples.md'), 'utf8');
 
-    assert.ok(content.includes('Moat Radar') || content.includes('Factor Score'), 'Must include Moat Radar example');
-    assert.ok(content.includes('Base Case') && content.includes('Bear Case') && content.includes('Bull Case'), 'Must include Scenario Model example');
+    assert.ok(content.includes('Factor Benchmarking Template'), 'Must include source-shaped factor example');
+    assert.ok(content.includes('Bear / Base / Bull'), 'Must include conditional scenario example');
+    assert.ok(content.includes('Conditional Scenario Template'), 'Must include scenario provenance requirements');
     assert.ok(content.includes('Valuation Bands') || content.includes('P/E Percentile'), 'Must include Valuation Bands example');
     assert.ok(content.includes('Catalyst Timeline') || content.includes('Price Catalyst'), 'Must include Catalyst Timeline example');
-    assert.ok(content.includes('Directional Prediction') || content.includes('EV_{\\text{return}}') || content.includes('Upward Bias'), 'Must include Directional Prediction example');
-    assert.ok(content.includes('S_{\\text{direction}}') || content.includes('Dynamic Coverage') || content.includes('Composite Score'), 'Must include 4-vector score example');
+    assert.ok(content.includes('illustrative') && content.includes('not verified'), 'Must label synthetic examples as unverified');
+    assert.ok(content.includes('INSUFFICIENT_DATA'), 'Must demonstrate fail-closed output');
   });
 });

@@ -2,6 +2,8 @@
 
 This document provides practical examples of how to execute the 8-phase investment due diligence process.
 
+> **Accuracy notice:** All company-specific values and conclusions in worked examples are illustrative, not verified or live research. Never cite or reuse them as facts; populate reports only from current, company-matched sources.
+
 ## Table of Contents
 
 1. [Example 1: Value Investing - A-share Blue Chip](#example-1-value-investing)
@@ -453,8 +455,7 @@ However, risks exist:
 | Bear | 10% growth to 2030, 2% terminal | ¥1,400 | -32% |
 
 **Current Price**: ¥2,050/share
-**Probability-weighted**: Bull (30%), Base (50%), Bear (20%)
-**Expected Value**: ¥2,010 (-2%)
+**Conditional Outcomes**: If bull assumptions hold, implied value is ¥2,800/share; if base assumptions hold, ¥2,050/share; if bear assumptions hold, ¥1,400/share. These illustrative cases are not predictions; no probabilities or expected value are assigned.
 
 **Margin of Safety**: Minimal (<5%)
 
@@ -502,29 +503,12 @@ However, risks exist:
 
 ## Key Risks
 
-1. **Regulatory Intervention** (High Impact, Medium Probability)
-   - Government could impose price caps or "anti-extravagance" measures
-   - Trigger: Economic slowdown, government focus on inequality
-   - Probability: 30%
-   - Impact: -30% to earnings if price increases blocked
+The following is a qualitative risk template, not calibrated likelihood:
 
-2. **Demand Slowdown** (High Impact, Medium Probability)
-   - Maturing category, demographic headwinds (younger generation drinks less baijiu)
-   - Trigger: Economic slowdown, cultural shift
-   - Probability: 40%
-   - Impact: -20% to volume growth
-
-3. **Competitive Erosion** (Medium Impact, High Probability)
-   - Wuliangye, Yanghe, and others closing the gap
-   - Trigger: Increased marketing investment, product innovation
-   - Probability: 60%
-   - Impact: -5-10% to market share annually
-
-4. **Execution Risk on DTC** (Low Impact, Low Probability)
-   - i茅台APP could alienate distributors or fail to scale
-   - Trigger: Poor adoption, technical issues
-   - Probability: 20%
-   - Impact: -3% to margin uplift
+1. **Regulatory Intervention**: [Evidence, potential trigger, and impact assumptions]
+2. **Demand Slowdown**: [Evidence, potential trigger, and impact assumptions]
+3. **Competitive Erosion**: [Evidence, potential trigger, and impact assumptions]
+4. **Execution Risk**: [Evidence, potential trigger, and impact assumptions]
 
 ## Conclusion
 
@@ -555,138 +539,75 @@ However, current valuation (P/E 32x) leaves minimal margin of safety. The stock 
 ### Context & Dual-Key Ground Truth Locking
 
 **Research Target**:
-- Company: Swaraj Engines Limited
-- NSE/BSE Ticker: `SWARAJENG` / `500407`
-- Tijori Slug: `swaraj-engines-limited`
-- ISIN: `INE277A01016`
-- CMP: ₹3,142.50
-- Market Cap: ₹3,817.50 Cr (₹38,175,000,000 INR)
-- Currency Scale: Dual-unit standardized (`currency: 'INR'`, `denomination_scale: 'Crores (1 Cr = 10,000,000 INR)'`)
+- Company: [Verify against current exchange and source data]
+- NSE/BSE Ticker: [Verified ticker and exchange]
+- Tijori Slug: [Resolve with Tijori]
+- ISIN: [Verify from an official filing]
+- CMP: [Value, currency, source timestamp]
+- Market Cap: [Value, currency, denomination, source timestamp]
+- Reporting basis: [Consolidated / standalone / not applicable]
 
 ---
 
-### Artifact 1: Authentic 5-Axis Moat Radar & Factor Score Benchmarking
+### Artifact 1: Factor Benchmarking Template
 
-Extracted via `get_factors_and_benchmarking(slug: "swaraj-engines-limited")`:
+Use only axes and values returned by `get_factors_and_benchmarking`. Preserve its 0–10 scale; do not invent percentiles, a composite moat score, or supporting metrics.
 
-| Radar Factor Axis | Factor Score (0-100) | Peer Benchmark Median | Relative Percentile | Dominant Sub-Metric / Driver |
-| :--- | :--- | :--- | :--- | :--- |
-| **Profitability** | **88 / 100** | 58 / 100 | 92nd percentile | ROCE: 48.6%, Operating Cash Margin: 14.2% |
-| **Financial Health** | **94 / 100** | 62 / 100 | 96th percentile | Zero Debt (D/E: 0.00x), Interest Coverage: 240x |
-| **Growth** | **71 / 100** | 64 / 100 | 68th percentile | 5Y Volume CAGR: 11.2%, FY24 Revenue: ₹1,432.8 Cr (+12.4%) |
-| **Valuation** | **44 / 100** | 52 / 100 | 41st percentile | Trailing P/E: 24.8x vs. 5Y Historical Median: 21.2x |
-| **Price Momentum** | **78 / 100** | 55 / 100 | 81st percentile | 12M Relative Strength vs. Nifty Auto: +14.8% |
-| **Composite Moat Score** | **75.0 / 100** | **58.2 / 100** | **84th percentile** | **Wide Operational Moat (Monopoly tractor engine supplier to M&M Swaraj division)** |
-
-*Underlying 57 Factors Formula Evidence*: Swaraj Engines converts 98.4% of EBITDA into Operating Cash Flow, maintains negative working capital days (-14 days), and pays out 72% of PAT as dividends, backed by M&M's 52.1% parent ownership and 100% captive engine sourcing.
+| Axis | Company score (0–10) | Peer median (0–10) | Source / as-of date |
+| :--- | :---: | :---: | :--- |
+| [Returned axis] | [Value or null] | [Value or null] | [Citation and date] |
 
 ---
 
 ### Artifact 2: Daily Statistical Valuation Bands (P/E Percentile Distribution)
 
-Extracted via `get_valuation_bands(slug: "swaraj-engines-limited")`:
+Populate from a fresh `get_valuation_bands(slug: "<verified-slug>")` response. Include its `as_of` date. Do not infer the current P/E from an older positive observation.
 
-| Time Horizon | Min P/E | 25th Percentile (p25) | Median P/E (p50) | 75th Percentile (p75) | Max P/E | Current Trailing P/E | Percentile Rank | Stance |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **1-Year** | 19.8x | 21.5x | 23.4x | 25.6x | 27.8x | **24.8x** | 64th percentile | Fair Value |
-| **3-Year** | 16.2x | 19.1x | 21.8x | 24.2x | 28.5x | **24.8x** | 79th percentile | Modest Premium |
-| **5-Year** | 14.5x | 17.8x | 21.2x | 23.9x | 31.0x | **24.8x** | 82nd percentile | Full Valuation |
-| **10-Year** | 12.1x | 16.4x | 19.9x | 23.1x | 31.0x | **24.8x** | 86th percentile | Cyclical Mid-High |
+| Horizon | Min | P25 | Median | P75 | Max | Sample count |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| [1y / 3y / 5y / 10y] | [Returned value] | [Returned value] | [Returned value] | [Returned value] | [Returned value] | [Count] |
 
-*Interpretation*: Current P/E of 24.8x sits near the 75th percentile of the 5-year range, reflecting market recognition of higher volume share in higher-horsepower (>40 HP) tractor engines, but leaving little room for margin multiple expansion without continued double-digit EPS delivery.
+Current P/E: [value or null] · As of: [timestamp] · Stale cache: [yes/no]
 
 ---
 
 ### Artifact 3: 3-Year Historical Price Catalyst Timeline
 
-Extracted via `get_price_movement_catalysts(ticker: "SWARAJENG.NS")`:
+Populate only from returned catalyst records; cite each source and distinguish correlation from demonstrated causality.
 
-| Date / Quarter | Price Move | Direction | Primary Verified Catalyst | Causal Driver & Metric Evidence |
+| Date | Price move (source/unit) | Source-stated event | Independent evidence | Citation |
 | :--- | :--- | :--- | :--- | :--- |
-| **2024-05-18 (Q4FY24)** | **+8.4%** | 🟢 Up | FY24 Record Net Profit & Special Dividend | Q4 PAT ₹38.2 Cr (+18% YoY); Total Dividend declared: ₹95/share (Dividend Yield: 3.4%) |
-| **2024-02-06 (Q3FY24)** | **-6.2%** | 🔴 Down | Temporary Rural Tractor Slowdown | Q3 Engine Sales Volume declined 4.8% YoY to 29,400 units due to erratic monsoon |
-| **2023-10-28 (Q2FY24)** | **+7.1%** | 🟢 Up | Festival Festive Inventory Build & New 50+ HP Engine Launch | Q2 Revenue ₹412 Cr; capacity utilization expanded to 91% ahead of peak Kharif harvest |
-| **2023-01-24 (Q3FY23)** | **+5.5%** | 🟢 Up | M&M Capital Allocation Synergies Announcement | Board clearance for debottlenecking engine assembly plant to 150,000 units/year |
+| [Date] | [Value or null] | [Description] | [Confirm / unknown] | [Source and URL] |
 
 ---
 
 ### Artifact 4: Institutional Broker Research Notes Matrix
 
-Extracted via `get_brokerage_reports(ticker: "SWARAJENG.NS")`:
+Use only structured target values with their source currency, report date, and broker identity. Do not calculate consensus or implied upside unless compatible numeric inputs are present.
 
-| Institution / Broker | Rating Date | Recommendation | Target Price (₹) | Implied Upside | Key Rationale & EPS Estimate |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **HDFC Securities** | 2024-07-22 | **BUY** | ₹3,620.00 | +15.2% | FY26E EPS ₹152.0; rising mechanization, 50+ HP engine mix expansion to 42% |
-| **ICICI Direct** | 2024-06-15 | **ACCUMULATE** | ₹3,450.00 | +9.8% | FY26E EPS ₹146.5; debt-free balance sheet, consistent 70%+ dividend payout |
-| **Antique Stock Broking** | 2024-05-24 | **HOLD** | ₹3,180.00 | +1.2% | FY26E EPS ₹138.0; fair valuation at 23x FY25E, awaiting rural demand confirmation |
-| **Consensus Target** | **Active (3)** | **MODERATE BUY** | **₹3,416.70** | **+8.7%** | **Median FY26E EPS ₹146.5; Coverage breadth: 3 institutional brokers** |
+| Broker | Report date | Rating | Structured target | Currency | Source |
+| :--- | :--- | :--- | :---: | :---: | :--- |
+| [Broker] | [Date] | [Source label] | [Value or null] | [Currency or null] | [Report URL] |
 
 ---
 
-### Artifact 5: Probabilistic Base / Bear / Bull Scenario Model
+### Artifact 5: Conditional Scenario Template
 
-Constructed via `get_scenario_projections(ticker: "SWARAJENG.NS")` cross-referenced with `get_operational_metrics` and `get_raw_materials`:
+Use verified, company-matched inputs. Treat provider weights as assumptions, not calibrated probabilities. If source data is absent or mismatched, report `INSUFFICIENT_DATA`.
 
-| Scenario | Probability ($P_s$) | Core Operational Drivers | FY26E Net Profit (₹ Cr) | Target P/E Multiple | Target Price ($T_s$) | Implied Upside / Downside |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Bear Case** | **20%** | Deficient monsoon, tractor volume contraction (-4% YoY), pig iron/castings inflation compress EBITDA margin to 12.8% | ₹152.0 Cr (EPS ₹125.1) | 18.0x | **₹2,251.80** | **-28.3%** |
-| **Base Case** | **55%** | Normal monsoon, tractor volume growth (+8% YoY), steady engine realization (₹94,500/unit), EBITDA margin stable at 14.5% | ₹178.5 Cr (EPS ₹146.9) | 22.0x | **₹3,231.80** | **+2.8%** |
-| **Bull Case** | **25%** | High rural infra capex, tractor volume surge (+16% YoY), >50 HP engine share hits 46%, operating leverage expands EBITDA margin to 15.8% | ₹212.0 Cr (EPS ₹174.5) | 25.0x | **₹4,362.50** | **+38.8%** |
-
-#### Probability-Weighted Expected Value ($EV_{\text{target}}$) and Return ($EV_{\text{return}}$):
-$$EV_{\text{target}} = (0.20 \times 2,251.80) + (0.55 \times 3,231.80) + (0.25 \times 4,362.50) = 450.36 + 1,777.49 + 1,090.63 = ₹3,318.48$$
-
-$$EV_{\text{return}} = \frac{EV_{\text{target}} - \text{CMP}}{\text{CMP}} \times 100\% = \frac{3,318.48 - 3,142.50}{3,142.50} \times 100\% = \mathbf{+5.60\%}$$
-
-*Probability Axiom Verification*: $20\% + 55\% + 25\% = 100.0\%$ (passes Gate G13).
+| Case | Source and date | Assumptions | Conditional outcomes | Sensitivity / invalidation evidence |
+| :--- | :--- | :--- | :--- | :--- |
+| Bear / Base / Bull | [Citation] | [Explicit assumptions] | [Estimate, currency, unit] | [What would change the case] |
 
 ---
 
-### Artifact 6: 4-Vector Dynamic Coverage Directional Prediction Engine
+### Artifact 6: Evidence Summary (Not a Price Prediction)
 
-#### Mathematical Vector Computation:
-1. **Valuation Band Vector ($V_{\text{Val}}$)**:
-   - Current 5-Year P/E Percentile: 82nd percentile ($>75\text{th}$ percentile)
-   - $V_{\text{Val}} = -0.5$ (Elevated valuation multiple capping multiple expansion)
-2. **Smart-Money Float Vector ($V_{\text{Flow}}$)**:
-   - FII + DII holding increased from 18.4% to 19.8% (+1.4% float absorbed over trailing 4 quarters)
-   - $V_{\text{Flow}} = +0.5$ (Net institutional accumulation)
-3. **Consensus EPS Surprise Vector ($V_{\text{Earn}}$)**:
-   - Trailing 4 Quarters EPS vs. Estimate: +4.2%, +1.8%, -2.1%, +5.4% (Average surprise $>0\%$)
-   - $V_{\text{Earn}} = +0.5$ (Positive operating earnings delivery)
-4. **Broker Target Spread Vector ($V_{\text{Cons}}$)**:
-   - Active Coverage: 3 brokers ($N \ge 1$)
-   - Consensus Target Upside: $+8.7\%$ ($>+5\%$)
-   - $V_{\text{Cons}} = +0.5$ (Positive broker target spread)
-
-#### Composite Directional Score ($S_{\text{direction}}$):
-$$S_{\text{direction}} = \frac{V_{\text{Val}} + V_{\text{Flow}} + V_{\text{Earn}} + V_{\text{Cons}}}{4} = \frac{-0.5 + 0.5 + 0.5 + 0.5}{4} = \frac{+1.0}{4} = \mathbf{+0.25}$$
-
-#### Final Directional Stance:
-**🟡 Range-Bound to Modest Upward Bias** ($S_{\text{direction}} = +0.25$, $EV_{\text{return}} = +5.60\%$)
-
-| Directional Vector | Score | Real Data Grounding |
-| :--- | :--- | :--- |
-| $V_{\text{Val}}$ (Valuation Multiple) | -0.50 | 5-Year P/E percentile at 82nd (24.8x vs. 21.2x median) |
-| $V_{\text{Flow}}$ (Institutional Float) | +0.50 | DII/Mutual Fund holding expanded +140 bps over trailing 4Q |
-| $V_{\text{Earn}}$ (Operational Delivery) | +0.50 | 3 of 4 quarters beat consensus PAT; FY24 ROCE at 48.6% |
-| $V_{\text{Cons}}$ (Consensus Upside) | +0.50 | 3 broker reports average target ₹3,416.70 (+8.7% upside) |
-| **Composite Score ($S_{\text{direction}}$)** | **+0.25** | **Range-Bound ($[-0.25, +0.25]$ threshold); High quality business trading at fair-to-full multiple** |
-
-#### Top 3 Causal Up-Drivers:
-1. **Engine Mix Shift to High Horsepower (>40 HP)**: Contribution of >40 HP engines increasing realization from ₹91,200 to ₹96,400 per unit, lifting gross margin by +120 bps.
-2. **Parent M&M Tractor Volume Outperformance**: M&M gaining domestic tractor market share (now >42%), directly driving 100% captive volumes for Swaraj Engines.
-3. **Substantial Cash Return Profile**: Net cash on balance sheet (>₹280 Cr) enabling sustained dividend yields of 3.0–3.5% with zero debt.
-
-#### Top 3 Downside Risk Triggers:
-1. **Monsoon Deficit or Delayed Kharif Sowing**: >10% contraction in tractor industry retail sales for 2 consecutive months triggering volume derating.
-2. **Raw Material Price Spikes in Castings / Steel Scrap**: Ferrous scrap price inflation >15% without immediate passthrough, compressing EBITDA margins below 13.0%.
-3. **Valuation Multiple De-rating**: Broad auto sector correction pulling trailing P/E from 24.8x down toward 5-year median of 21.2x (-14.5% multiple contraction).
-
-#### 30-90 Day Binary Milestones to Monitor:
-- [ ] **Monthly Tractor Sales Release (1st of every month)**: M&M tractor volume growth exceeding +8% YoY.
-- [ ] **Q2FY25 Earnings Release**: Operating margin maintaining $\ge 14.0\%$ and engine sales volume crossing 34,000 units.
-- [ ] **Pig Iron & Scrap Commodity Price Index**: Verifying raw material cost stability via `get_raw_materials(commodity: "steel")`.
+- **Supporting evidence**: [Dated observations with citations]
+- **Counter-evidence**: [Dated observations with citations]
+- **Key assumptions**: [Explicit, testable assumptions]
+- **Monitoring triggers**: [Dated public events or measurable indicators]
+- **Conclusion**: `INSUFFICIENT_DATA` unless identity, freshness, and evidence checks pass.
 
 ---
 
@@ -700,7 +621,7 @@ This examples file demonstrates:
 4. **Phase Report Generation**: How to create structured phase reports
 5. **Quality Assurance**: How to use citation-validator to ensure quality
 6. **Final Synthesis**: How to create a comprehensive executive summary
-7. **Quad-MCP Indian Equity Due Diligence**: Moat Radar factor benchmarking, daily statistical P/E valuation bands, causal price catalysts, broker research consensus, probabilistic scenario models, and 4-vector dynamic coverage directional predictions grounded in 100% verified real data.
+7. **Quad-MCP Indian Equity Due Diligence**: Entity-verified factor data, valuation bands, price catalysts, structured broker targets, sourced conditional scenarios, and explicit evidence gaps.
 
 For detailed phase-by-phase instructions, see [phases.md](phases.md).
 For overall execution instructions, see [instructions.md](instructions.md).

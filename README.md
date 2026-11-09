@@ -99,7 +99,7 @@ A web search gives you unstructured pages. This gives Claude **structured, query
 |---|---|
 | `search_company` | Search any company by name, returns slug |
 | `get_company_overview` | Key ratios, forensics score, market cap, PE, ROE, ROCE |
-| `get_financials` | P&L, Balance Sheet, Cash Flow, Ratios, Quarterly results |
+| `get_financials` | P&L, Balance Sheet, Cash Flow, Ratios, Quarterly results; optional `basis` (`consolidated` or `standalone`, default `consolidated`) |
 | `get_shareholding` | 10-quarter promoter / FII / DII / public breakdown |
 | `get_operational_metrics` | All operational KPIs with full historical time series |
 | `get_fund_flow` | Capital allocation breakdown over 1/3/5/7/10 years |
@@ -337,4 +337,3 @@ This project is not affiliated with Tijori Finance. It requires your own paid Ti
 *Built with [Model Context Protocol](https://modelcontextprotocol.io) · Data from [Tijori Finance](https://tijorifinance.com)*
 
 </div>
-

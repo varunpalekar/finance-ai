@@ -64,6 +64,28 @@ test('getValuationBands correctly filters negative P/E loss days and reports cou
   assert.equal(res.valuation_bands['5y'], null, '5Y band must be null when dataset is only 400 days');
 });
 
+test('getValuationBands uses latest observation date and does not reuse an old positive P/E', async () => {
+  const latestTimestamp = Date.UTC(2026, 10, 1);
+  const peData = [
+    [Date.UTC(2025, 0, 1), 20],
+    [Date.UTC(2026, 0, 1), 21],
+    [latestTimestamp, -10],
+  ];
+  const overviewHtml = readFileSync(join(__dirname, 'fixtures', 'swaraj-engines-overview.html'), 'utf-8');
+  const client = new TijoriClient({
+    fetchFn: createMockFetch({
+      '/company/swaraj-engines-limited/': { status: 200, body: overviewHtml },
+      '/api/v1/ind/chartdata/298/pe/': { status: 200, body: { data: peData } },
+    }),
+    cacheEnabled: false,
+  });
+
+  const result = await client.getValuationBands('swaraj-engines-limited');
+
+  assert.equal(result.current_pe, null);
+  assert.equal(result.as_of, new Date(latestTimestamp).toISOString());
+});
+
 test('getValuationBands returns clean fallback with nulls when company_id cannot be resolved', async () => {
   const mockOverviewHtml = `<html><body><script>{"symbol": "UNMAPPED"}</script></body></html>`;
   const mockFetch = createMockFetch({

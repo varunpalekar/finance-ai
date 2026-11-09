@@ -62,7 +62,7 @@ Every decision here was a response to a production failure:
 | `search_company` | GET `/api/v1/ind/company_search/?q=` (NOT `/api/search/`) |
 | `resolve_company_ids` | scrape inline script JSON on `/company/{slug}/` |
 | `get_company_overview` | scrape `/company/{slug}/` (`.custom_ratio` selectors) |
-| `get_financials` | scrape, type-aware section selectors (pl/bs/cf/ratios/quarterly) |
+| `get_financials` | scrape, basis-aware section selectors (consolidated/standalone) and type-aware sections (pl/bs/cf/ratios/quarterly); recursively preserves nested metric rows and hierarchy |
 | `get_shareholding` | scrape 10-quarter table |
 | `get_operational_metrics` | GET `/api/v1/ind/company_op_metrics/{id}/{sectorId}/` |
 | `get_fund_flow` | GET `/api/v1/ind/fund_flow_analysis_data/{id}/` (returns all periods; filter by years 1/3/5/7/10) |

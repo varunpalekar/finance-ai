@@ -34,6 +34,7 @@ test('getFinancials parses table rows and headers for pl', async () => {
   const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
   const fin = await client.getFinancials('tata-steel-limited', 'pl');
   assert.equal(fin.type, 'pl');
+  assert.equal(fin.reporting_basis, 'consolidated');
   assert.equal(fin.currency, 'INR');
   assert.ok(fin.denomination.includes('Crores'));
   assert.ok(Array.isArray(fin.rows));
@@ -42,6 +43,90 @@ test('getFinancials parses table rows and headers for pl', async () => {
   // Check em-dash sanitization
   assert.equal(fin.rows[2]['FY20'], null);
   assert.equal(fin.rows[2]['FY21'], null);
+});
+
+test('getFinancials selects only the requested embedded reporting basis', async () => {
+  const html = `<script>${JSON.stringify({
+    pl_c_s: { report_dates: ['FY26'], data: [{ name: 'Revenue', value: [200] }] },
+    pl_s_s: { report_dates: ['FY26'], data: [{ name: 'Revenue', value: [100] }] }
+  })}</script>`;
+  const mockFetch = createMockFetch({
+    '/company/basis-test/financials/': { status: 200, body: html }
+  });
+  const client = new TijoriClient({ fetchFn: mockFetch, cacheEnabled: false });
+
+  const consolidated = await client.getFinancials('basis-test', 'pl', { basis: 'consolidated' });
+  const standalone = await client.getFinancials('basis-test', 'pl', { basis: 'standalone' });
+
+  assert.equal(consolidated.reporting_basis, 'consolidated');
+  assert.equal(consolidated.rows[0].FY26, '200');
+  assert.equal(standalone.reporting_basis, 'standalone');
+  assert.equal(standalone.rows[0].FY26, '100');
+});
+
+test('getFinancials preserves nested balance-sheet rows and their hierarchy', async () => {
+  const html = `<script>${JSON.stringify({
+    bs_c_s: {
+      report_dates: ['FY26'],
+      data: [
+        {
+          name: 'Assets',
+          value: [100],
+          sub_section: [{
+            name: 'Current Assets',
+            value: [60],
+            sub_section: [{ name: 'Cash & Bank Balances', value: [15], sub_section: '' }]
+          }]
+        },
+        {
+          name: 'Liabilities',
+          value: [100],
+          sub_section: [{
+            name: 'Non Current Liabilities',
+            value: [40],
+            sub_section: [{ name: 'Secured Loans', value: [25], sub_section: '' }]
+          }]
+        }
+      ]
+    }
+  })}</script>`;
+  const client = new TijoriClient({
+    fetchFn: createMockFetch({ '/company/nested-balance-sheet/financials/': { status: 200, body: html } }),
+    cacheEnabled: false
+  });
+
+  const financials = await client.getFinancials('nested-balance-sheet', 'bs');
+
+  assert.deepEqual(financials.rows.map(({ metric, hierarchy, FY26 }) => ({ metric, hierarchy, FY26 })), [
+    { metric: 'Assets', hierarchy: ['Assets'], FY26: '100' },
+    { metric: 'Current Assets', hierarchy: ['Assets', 'Current Assets'], FY26: '60' },
+    { metric: 'Cash & Bank Balances', hierarchy: ['Assets', 'Current Assets', 'Cash & Bank Balances'], FY26: '15' },
+    { metric: 'Liabilities', hierarchy: ['Liabilities'], FY26: '100' },
+    { metric: 'Non Current Liabilities', hierarchy: ['Liabilities', 'Non Current Liabilities'], FY26: '40' },
+    { metric: 'Secured Loans', hierarchy: ['Liabilities', 'Non Current Liabilities', 'Secured Loans'], FY26: '25' }
+  ]);
+});
+
+test('getFinancials rejects missing requested basis instead of falling back', async () => {
+  const html = `<script>${JSON.stringify({
+    pl_s_s: { report_dates: ['FY26'], data: [{ name: 'Revenue', value: [100] }] }
+  })}</script>`;
+  const client = new TijoriClient({
+    fetchFn: createMockFetch({ '/company/standalone-only/financials/': { status: 200, body: html } }),
+    cacheEnabled: false
+  });
+
+  await assert.rejects(client.getFinancials('standalone-only', 'pl'), /consolidated.*unavailable/i);
+});
+
+test('getFinancials rejects an unrelated statement table', async () => {
+  const html = readFileSync(join(__dirname, 'fixtures', 'tata-steel-financials.html'), 'utf-8');
+  const client = new TijoriClient({
+    fetchFn: createMockFetch({ '/company/tata-steel-limited/financials/': { status: 200, body: html } }),
+    cacheEnabled: false
+  });
+
+  await assert.rejects(client.getFinancials('tata-steel-limited', 'cf'), /cash flow.*unavailable/i);
 });
 
 test('getShareholding parses quarterly trend and cleans em-dash to null', async () => {

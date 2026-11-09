@@ -916,16 +916,25 @@ export class TijoriClient {
     return result;
   }
 
-  async getFinancials(slug, type = 'pl', { fresh = false } = {}) {
+  async getFinancials(slug, type = 'pl', { fresh = false, basis = 'consolidated' } = {}) {
     const TYPE_TO_SECTION = {
-      pl:        'profit_and_loss',
-      bs:        'balance_sheet',
-      cf:        'cash_flow',
-      ratios:    'ratios',
-      quarterly: 'quarterly_results',
+      pl: { section: 'profit_and_loss', label: 'P&L' },
+      bs: { section: 'balance_sheet', label: 'balance sheet' },
+      cf: { section: 'cash_flow', label: 'cash flow' },
+      ratios: { section: 'ratios', label: 'ratios' },
+      quarterly: { section: 'quarterly_results', label: 'quarterly results' },
     };
-    const sectionId = TYPE_TO_SECTION[type] || type;
-    const cacheKey = `financials:${slug}:${type}`;
+    const typeInfo = TYPE_TO_SECTION[type];
+    if (!typeInfo) throw new Error(`Unsupported financial statement type: ${type}`);
+    if (!['consolidated', 'standalone'].includes(basis)) {
+      throw new Error(`Unsupported reporting basis: ${basis}`);
+    }
+
+    const sectionId = typeInfo.section;
+    const cacheKey = `financials:v2:${slug}:${type}:${basis}`;
+    const unavailable = () => {
+      throw new Error(`Requested ${basis} ${typeInfo.label} statement is unavailable for ${slug}`);
+    };
 
     const fetched = await this._fetch(`/company/${slug}/financials/`, {
       cacheKey,
@@ -933,6 +942,9 @@ export class TijoriClient {
     });
 
     if (fetched.isCached) {
+      if (fetched.data.reporting_basis !== basis || fetched.data.type !== type) {
+        return unavailable();
+      }
       return fetched.data;
     }
 
@@ -953,33 +965,40 @@ export class TijoriClient {
 
     if (embeddedData) {
       let section = null;
-      if (type === 'pl') {
-        section = embeddedData.pl_c_s || embeddedData.pl_s_s || embeddedData.pl_c_d || embeddedData.pl_s_d;
-      } else if (type === 'bs') {
-        section = embeddedData.bs_c_s || embeddedData.bs_s_s || embeddedData.bs_c_d || embeddedData.bs_s_d;
-      } else if (type === 'cf') {
-        section = embeddedData.cf_c || embeddedData.cf_s;
-      } else if (type === 'ratios') {
-        section = embeddedData.fr_c || embeddedData.fr_s;
-      } else if (type === 'quarterly') {
-        section = embeddedData.qt_c || embeddedData.qt_s;
-      }
+      const basisKey = basis === 'consolidated' ? 'c' : 's';
+      const keys = type === 'pl' || type === 'bs'
+        ? [`${type}_${basisKey}_s`, `${type}_${basisKey}_d`]
+        : [{
+            cf: `cf_${basisKey}`,
+            ratios: `fr_${basisKey}`,
+            quarterly: `qt_${basisKey}`,
+          }[type]];
+      section = keys.map(key => embeddedData[key]).find(Boolean) || null;
 
       if (section && section.report_dates && Array.isArray(section.data)) {
         const periodHeaders = section.report_dates;
-        const rows = section.data.map(item => {
-          const row = { metric: item.name };
-          (item.value || []).forEach((val, i) => {
-            const h = periodHeaders[i];
-            if (h) {
-              row[h] = val === null || val === undefined ? null : String(val);
+        const rows = [];
+        const appendRows = (items, parentHierarchy = []) => {
+          for (const item of items) {
+            const hierarchy = [...parentHierarchy, item.name];
+            const row = { metric: item.name, hierarchy };
+            (Array.isArray(item.value) ? item.value : []).forEach((val, i) => {
+              const h = periodHeaders[i];
+              if (h) {
+                row[h] = val === null || val === undefined ? null : String(val);
+              }
+            });
+            rows.push(row);
+            if (Array.isArray(item.sub_section)) {
+              appendRows(item.sub_section, hierarchy);
             }
-          });
-          return row;
-        });
+          }
+        };
+        appendRows(section.data);
 
         const result = {
           type,
+          reporting_basis: basis,
           currency: 'INR',
           denomination: 'Crores (1 Cr = 10,000,000 INR)',
           notes: 'Amounts in ₹ Crores, ratios in %, EPS in INR per share.',
@@ -993,18 +1012,20 @@ export class TijoriClient {
       }
     }
 
-    // 2. Fallback to HTML table parsing (for pre-rendered static DOM or test fixtures)
-    let wrapper = $(`#${sectionId}_table_wrapper`);
-    if (!wrapper.length) {
-      wrapper = $(`#company_table_innertab_${sectionId}_content .dt-container`);
-    }
-    if (!wrapper.length) {
-      wrapper = $('table.dataTable').closest('div');
-    }
-    if (!wrapper.length) {
-      wrapper = $('body');
+    const wrapper = $(`#${sectionId}_table_wrapper`).first().length
+      ? $(`#${sectionId}_table_wrapper`).first()
+      : $(`#company_table_innertab_${sectionId}_content .dt-container`).first();
+    if (!wrapper.length) unavailable();
+
+    const declaredBasis = wrapper.attr('data-reporting-basis');
+    const activeBasis = ['consolidated', 'standalone'].find(value =>
+      $(`[data-toggle="${value}"].active, [data-toggle="${value}"][aria-selected="true"]`).length > 0
+    );
+    if ((declaredBasis && declaredBasis !== basis) || (!declaredBasis && activeBasis !== basis)) {
+      unavailable();
     }
 
+    // Parse only the requested statement container; never substitute another table.
     const periodHeaders = [];
     wrapper.find('thead th.headerItem, thead th').each((_, th) => {
       const t = $(th).text().trim();
@@ -1035,11 +1056,14 @@ export class TijoriClient {
       rows.push(row);
     });
 
+    if (periodHeaders.length === 0 || rows.length === 0) unavailable();
+
     const result = {
       type,
+      reporting_basis: basis,
       currency: 'INR',
       denomination: 'Crores (1 Cr = 10,000,000 INR)',
-      notes: 'Amounts in ₹ Crores, ratios in %, EPS in INR per share.',
+      notes: `Amounts in ₹ Crores, ratios in %, EPS in INR per share. Reporting basis: ${basis}.`,
       headers: ['metric', ...periodHeaders],
       rows
     };
@@ -1759,9 +1783,14 @@ export class TijoriClient {
         const peerSeries = series.slice(1);
 
         radarAxes = axes.map((axis, i) => {
-          const companyScore = targetSeries?.data?.[i] ?? 0;
-          const peerScores = peerSeries.map((s) => s.data?.[i]).filter((s) => typeof s === 'number');
-          const peerMedian = peerScores.length ? (computePercentiles(peerScores, [0.5]).p50 ?? 0) : 0;
+          const rawCompanyScore = targetSeries?.data?.[i];
+          const companyScore = typeof rawCompanyScore === 'number' && Number.isFinite(rawCompanyScore)
+            ? rawCompanyScore
+            : null;
+          const peerScores = peerSeries
+            .map((s) => s.data?.[i])
+            .filter((score) => typeof score === 'number' && Number.isFinite(score));
+          const peerMedian = peerScores.length ? computePercentiles(peerScores, [0.5]).p50 : null;
           return {
             name: axis.name || axis.label || axis.key,
             key: axis.key,
@@ -1875,27 +1904,24 @@ export class TijoriClient {
         rawPoints = typeof chartJson.data === 'string' ? JSON.parse(chartJson.data) : chartJson.data;
       }
 
-      let lossDaysCount = 0;
+      const observations = rawPoints
+        .filter(point => Array.isArray(point) && point.length >= 2 &&
+          typeof point[0] === 'number' && Number.isFinite(point[0]) &&
+          typeof point[1] === 'number' && Number.isFinite(point[1]))
+        .sort((a, b) => a[0] - b[0]);
+      const lossDaysCount = observations.filter(([, pe]) => pe <= 0).length;
       const validPoints = [];
-      for (const point of rawPoints) {
-        if (Array.isArray(point) && point.length >= 2) {
-          const [ts, pe] = point;
-          if (typeof pe === 'number') {
-            if (pe <= 0) {
-              lossDaysCount++;
-            } else {
-              validPoints.push([ts, pe]);
-            }
-          }
-        }
+      for (const point of observations) {
+        if (point[1] > 0) validPoints.push(point);
       }
 
-      validPoints.sort((a, b) => a[0] - b[0]);
-      const currentPe = validPoints.length > 0 ? validPoints[validPoints.length - 1][1] : null;
+      const latestObservation = observations.at(-1);
+      const asOf = latestObservation ? new Date(latestObservation[0]).toISOString() : null;
+      const currentPe = latestObservation?.[1] > 0 ? latestObservation[1] : null;
 
       const valuationBands = { '1y': null, '3y': null, '5y': null, '10y': null };
-      if (validPoints.length > 0) {
-        const maxTs = validPoints[validPoints.length - 1][0];
+      if (validPoints.length > 0 && latestObservation) {
+        const maxTs = latestObservation[0];
         const minTs = validPoints[0][0];
         const totalSpanDays = (maxTs - minTs) / 86400000;
 
@@ -1928,6 +1954,7 @@ export class TijoriClient {
         slug,
         company_id: companyId,
         current_pe: currentPe,
+        as_of: asOf,
         valuation_bands: valuationBands,
         peers,
         loss_making_days_excluded: lossDaysCount,
@@ -1953,7 +1980,7 @@ export class TijoriClient {
   }
 
   async getScenarioProjections(slug, { fresh = false } = {}) {
-    const cacheKey = `scenarios:${slug}`;
+    const cacheKey = `scenarios:verified:${slug}`;
 
     const fetched = await this._fetch(`/company/${slug}/shareholding/`, {
       cacheKey,
@@ -1975,6 +2002,27 @@ export class TijoriClient {
         scenarios: [],
         forecasts: null,
         note: 'No scenario projections available for this company',
+      };
+      if (this.cacheEnabled) {
+        set(cacheKey, fallback, TTL.SCENARIOS, 'json', slug);
+      }
+      return fallback;
+    }
+
+    const pageCompany = $('title').text().split('|')[0].trim();
+    const reportCompany = $('.peg-sample__company').first().text().trim();
+    if (
+      !pageCompany ||
+      !reportCompany ||
+      /^sample report of\b/i.test(reportCompany) ||
+      pageCompany.toLocaleLowerCase() !== reportCompany.toLocaleLowerCase()
+    ) {
+      const fallback = {
+        slug,
+        has_projections: false,
+        scenarios: [],
+        forecasts: null,
+        note: 'No verified company-specific scenario projections available',
       };
       if (this.cacheEnabled) {
         set(cacheKey, fallback, TTL.SCENARIOS, 'json', slug);
@@ -2058,6 +2106,7 @@ export class TijoriClient {
 
     const result = {
       slug,
+      report_company: reportCompany,
       has_projections: scenarios.length > 0 || forecasts !== null,
       scenarios,
       forecasts,

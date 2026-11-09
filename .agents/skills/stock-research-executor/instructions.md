@@ -25,7 +25,7 @@ Before using this skill, you should have:
 
 ## Research Execution Framework
 
-### Overview: The 8-Phase Process & 9-Step Zero-Error Workflow
+### Overview: The 8-Phase Process & 9-Step Evidence-Grounded Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -85,14 +85,14 @@ Input: Structured Research Prompt (from stock-question-refiner)
 ┌─────────────────────────────────────────────────────────────┐
 │  Step 6: Financial Quality Assurance & Math Audit (FQA)      │
 │  - 8-Point institutional audit gate                          │
-│  - Working capital, cash flow conversion (OCF/NI >= 0.8)     │
+│  - Multi-period cash flow and working-capital analysis        │
 └─────────────────────────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Step 7: Generate Final Synthesis Report                     │
 │  - Reconcile 00_Executive_Summary.md with Phase 4 & Phase 7  │
-│  - Signal rating (🟢🟢🟢 / 🟡🟡🟡 / 🔴🔴)                     │
+│  - Evidence-based view, assumptions, and unresolved gaps      │
 │  - Master navigation index (README.md)                       │
 └─────────────────────────────────────────────────────────────┘
          │
@@ -109,9 +109,9 @@ Output: Complete Institutional Investment Due Diligence Dossier
 
 ---
 
-## Step 0: Temporal Anchor & Quad-MCP Grounding (MANDATORY ZERO-ERROR STEP)
+## Step 0: Temporal Anchor & Quad-MCP Grounding
 
-Before generating any research plan or launching child agents, the lead research agent **MUST** ground the factual universe across the 4-Pillar architecture to prevent historical staleness, unit mismatches, or ungrounded simulations:
+Before planning research, the lead agent records the current date and grounds each reported value in a source. No process can guarantee zero errors; preserve uncertainty, stale-data flags, and missing values.
 
 1. **Temporal Anchor ($T_0$) & Calendar Binding**:
    - Determine and record the exact system calendar date (e.g., `2026-11-09`).
@@ -127,31 +127,25 @@ Before generating any research plan or launching child agents, the lead research
      - Query **Tijori MCP** (`mcp__tijori-finance__*`):
        - `search_company(query="<ticker>")` & `resolve_company_ids(slug="<slug>")`: Lock `company_id`, ticker, and slug.
        - `get_company_overview(slug="<slug>")`: Extract valuation multiples, return ratios, forensic checklist, and both `mcap_crores` and `mcap_inr`.
-       - `get_valuation_bands(slug="<slug>")`: Extract 1Y, 3Y, 5Y, 10Y daily P/E percentile bands (min, p25, median, p75, max).
-       - `get_factors_and_benchmarking(slug="<slug>")`: Extract 0–10 Moat Radar overall score and 5 factor dimensions vs peer medians.
-       - `get_scenario_projections(slug="<slug>")`: Extract Base, Bear, Bull forward probabilities and 5Y forecast trajectories.
+       - `get_valuation_bands(slug="<slug>")`: Extract daily P/E percentile bands and the latest observation date.
+       - `get_factors_and_benchmarking(slug="<slug>")`: Extract returned factor axes and peer scores; do not infer an aggregate score.
+       - `get_scenario_projections(slug="<slug>")`: Check for verified, company-specific conditional scenarios. Treat source weights as assumptions, not calibrated odds.
      - Query **Perplexity Finance Tools** (`mcp__tijori-finance__*`):
        - `get_company_strategic_profile(ticker="<ticker>")`: Extract strategic business profile, consensus valuation multiples, and verify CMP.
        - `get_earnings_intelligence(ticker="<ticker>")`: Extract consensus revenue/EPS beat history and latest quarter surprise %.
      - Query **Screener MCP** (`stock-research_screener` / `screener-mcp`):
        - `get_quarterly_results(symbol="<symbol>")`: Verify latest filed statutory quarter and date of board approval.
-       - `get_financials(symbol="<symbol>")`: Cross-validate 10-year statutory balance sheet, P&L, and cash flow statement.
+       - `get_financials(symbol="<symbol>", basis="consolidated")`: Cross-validate statutory statements on the selected reporting basis.
        - `get_shareholding_pattern(symbol="<symbol>")`: Cross-validate latest quarter promoter, FII, DII holding and promoter pledge %.
      - Query **Yahoo Finance MCP** (`stock-research_yfinance` / `yfinance-mcp`):
        - `yfinance_get_ticker_info(ticker="<ticker>")`: Cross-validate real-time CMP, Market Cap, 52-week High/Low, Beta, Shares Outstanding.
    - **For US / Global Equities (NASDAQ, NYSE, HKEX)**:
      - Bypass Indian-only Tijori tools. Query Perplexity Finance (`get_company_strategic_profile`, `get_price_movement_catalysts`) + Yahoo Finance (`yfinance_get_ticker_info`, `yfinance_get_financials`, `yfinance_get_analyst_estimates`, `yfinance_get_price_history`) + SEC EDGAR via `mcp__web_reader__webReader`.
 
-3. **Lock Currency & Unit Denomination (Dual-Unit Standardization Contract)**:
-   - To eliminate arithmetic scale confusion between raw currency units and ₹ Crores:
-     - Indian Equities: Provide **BOTH** real raw Rupees (1 INR) and **₹ Crores** ($1\text{ Cr} = 10^7\text{ INR} = 10,000,000\text{ INR}$).
-     - In ground truth and dossier headers:
-       - `cmp`: Raw Rupees (e.g. `₹5,478.00`)
-       - `market_cap_cr`: In ₹ Crores (e.g. `₹109,500.00 Cr`)
-       - `market_cap_inr`: In raw Rupees (e.g. `₹1,095,000,000,000`)
-       - `actual_revenue_cr`: In ₹ Crores (e.g. `₹14,547.16 Cr`)
-     - Global Equities: **USD ($ in Millions or $ in Billions)** and raw dollar share prices.
-   - Every financial table must explicitly state this denomination in column headers. Never mix Lakhs with Crores.
+3. **Preserve Currency & Units**:
+   - Record the source currency, unit, scale, and observation date for every value. Convert only when the source denomination is known and the conversion is explicit.
+   - Indian figures may be displayed in INR and Crores when source metadata supports that conversion. Global figures retain their source currency.
+   - Unknown currency, unit, or scale stays null/unknown. Never infer it from a ticker or neighboring field.
 
 4. **Declare Accounting & Reporting Boundary**:
    - Explicitly declare whether primary analysis is **`[CONSOLIDATED]`** or **`[STANDALONE]`**.
@@ -159,39 +153,34 @@ Before generating any research plan or launching child agents, the lead research
 
 5. **Strictly Segregate Actuals from Forecasts**:
    - Statutory historical filings MUST be labeled **`[REPORTED / FILED]`**.
-   - Forward run-rates, consensus models, or DCF projections MUST be labeled **`[PROJECTED / ESTIMATE]`**.
+   - Forward run-rates, consensus models, and DCF outputs MUST be labeled **`[PROJECTED / ESTIMATE]`**, with source, as-of date, and assumptions.
+   - Scenario weights supplied by a source are assumptions, not calibrated probabilities. Never invent weights or expected returns.
 
 6. **Generate Central Ground Truth Table (`Financial_Data/ground_truth.json`)**:
-   - The Lead Agent saves a central, immutable ground truth file:
+   - The Lead Agent saves a central ground truth file with source, timestamp, currency, unit, reporting basis, and freshness metadata per value.
+   - Keep verified observations immutable; append corrections with provenance rather than silently overwriting them. Unknown fields stay null.
 ```json
 {
-  "ticker": "HEROMOTOCO.NS",
-  "symbol": "HEROMOTOCO",
-  "slug": "hero-motocorp-limited",
-  "temporal_anchor": "2026-11-09",
-  "active_fiscal_year": "FY27",
-  "latest_filed_quarter": "Q2 FY27",
-  "cmp": 5478.0,
-  "market_cap_cr": 109500.0,
-  "market_cap_inr": 1095000000000,
-  "shares_outstanding_cr": 19.99,
-  "current_pe": 26.4,
-  "pe_bands": {
-    "1y_median": 27.2,
-    "3y_median": 22.8,
-    "5y_median": 20.5,
-    "10y_median": 19.8,
-    "current_percentile_5y": "82nd"
-  },
-  "moat_radar_overall_score": 7.4,
-  "scenario_probabilities": {
-    "has_projections": true,
-    "base": "55%",
-    "bear": "30%",
-    "bull": "15%"
-  }
+  "ticker": null,
+  "symbol": null,
+  "slug": null,
+  "latest_filed_quarter": null,
+  "observations": [
+    {
+      "name": null,
+      "value": null,
+      "source": null,
+      "source_timestamp": null,
+      "cache_is_stale": null,
+      "reporting_basis": null,
+      "currency": null,
+      "denomination": null
+    }
+  ]
 }
 ```
+
+Populate a field only from a matching source response. Store per-field provenance in the research record; this schema contains no example investment data.
 
 ---
 
@@ -485,7 +474,7 @@ You are a senior forensic equity analyst focusing on [Phase Name: Unit Economics
 **GROUND TRUTH ANCHOR**:
 - Ticker: [ticker], Symbol: [symbol], Slug: [slug]
 - Calendar Date: [temporal_anchor], Latest Filed Quarter: [latest_filed_quarter]
-- Currency Standard: INR (₹ in Crores for tables; raw INR for CMP and per-share items)
+- Currency Standard: Preserve each source's currency and units; unknown values remain null.
 
 **JURISDICTIONAL ROUTER**:
 - **For Indian Equities (NSE/BSE)**:
@@ -495,7 +484,7 @@ You are a senior forensic equity analyst focusing on [Phase Name: Unit Economics
   4. `mcp__tijori-finance__get_shareholding` (`detailed: true`): Extract 10-quarter institutional holding shifts (line-item domestic mutual funds, LIC, retail tiers) and promoter pledge %.
   5. `mcp__tijori-finance__get_fund_flow`: Extract multi-year cumulative cash sources vs. uses across 1, 3, 5, 7, 10-year periods. (NOTE: Period parameter represents multi-year cumulative totals, not single-year annual flows).
   6. `mcp__tijori-finance__get_valuation_bands`: Extract statistical 1Y, 3Y, 5Y, 10Y daily P/E percentile valuation bands (min, p25, median, p75, max).
-  7. `mcp__tijori-finance__get_scenario_projections`: Extract Base, Bear, Bull forward probabilities and 5Y forecast trajectories.
+  7. `mcp__tijori-finance__get_scenario_projections`: Verify company-matched scenarios; record provider assumptions and provenance.
   8. `mcp__tijori-finance__get_earnings_intelligence`: Extract multi-quarter consensus revenue/EPS surprise track record.
   9. `stock-research_screener`: Extract statutory 10-year balance sheet, P&L, cash flows, and last 5 quarters.
 - **For US / Global Equities (NASDAQ/NYSE/HKEX)**:
@@ -503,7 +492,7 @@ You are a senior forensic equity analyst focusing on [Phase Name: Unit Economics
 
 **STRICT QUALITY RULES**:
 - Valuation Bands: DCF fair values and terminal multiples must be bounded within statistical 1Y–10Y P/E valuation bands from `get_valuation_bands`.
-- Scenario Probabilities: Base + Bear + Bull probabilities must sum to $100.0\% \pm 1.0\%$. If company has `has_projections: false`, subagent must synthesize scenario odds via Reverse-DCF implied market growth and 1Y–10Y P/E percentile bands (`get_valuation_bands`), labeled `[MODEL ESTIMATE - TIER B]`.
+- Scenario Provenance: Verify target company, observation date, reporting basis, currency, units, and source. Report provider-supplied weights only as assumptions; never synthesize odds or expected returns when source projections are absent.
 - TTM EPS Reconciliation: Reconcile trailing quarterly EPS sum ($\text{TTM EPS} = \sum_{q=1}^4 \text{Quarterly EPS}$) against annual audited FY figures.
 - Dual-Unit Denomination: Explicitly declare both raw INR (1 INR) and ₹ Crores ($10^7$ INR) in headers.
 ```
@@ -571,11 +560,8 @@ Before aggregating research findings into phase reports, all quantitative financ
 7. **Valuation Capitalization Invariant**:
    $$\text{Market Capitalization} = \text{CMP} \times \text{Diluted Shares Outstanding}$$
    $$\text{Enterprise Value} = \text{Market Cap} + \text{Total Debt} + \text{Minority Interest} - \text{Cash \& Cash Equivalents}$$
-8. **Scenario Probability Normalization Invariant**:
-   $$P_{\text{Base}} + P_{\text{Bear}} + P_{\text{Bull}} = 100.0\% \quad (\pm 1.0\% \text{ rounding threshold})$$
-9. **Expected Value Payoff Invariant**:
-   $$EV_{\text{target}} = (P_{\text{Bull}} \times V_{\text{Bull}}) + (P_{\text{Base}} \times V_{\text{Base}}) + (P_{\text{Bear}} \times V_{\text{Bear}})$$
-   $$EV_{\text{return}} = \frac{EV_{\text{target}} - \text{CMP}}{\text{CMP}} \times 100\%$$
+8. **Scenario Provenance Check**:
+   Verify scenario identity, date, reporting basis, currency, units, source methodology, and stated assumptions. Mathematical consistency does not establish probability calibration or prediction accuracy.
 
 ---
 
@@ -622,7 +608,7 @@ Before the Lead Agent compiles `00_Executive_Summary.md`, execute the mandatory 
    - [ ] Both raw INR integers (1 INR) and ₹ Crores ($10^7$ INR) standardized with zero scale confusion.
 
 5. **G5: Algebraic Invariant Audit**:
-   - [ ] All 9 mathematical invariants verified with zero math errors.
+   - [ ] Check all 9 mathematical invariants and document any discrepancies.
 
 6. **G6: Cross-Document Synchronization**:
    - [ ] Figures in `00_Executive_Summary.md` match `04_Financial_Quality.md` and `07_Valuation_Moat.md` verbatim.
@@ -634,7 +620,7 @@ Before the Lead Agent compiles `00_Executive_Summary.md`, execute the mandatory 
    - [ ] Terminal growth $g \le \text{Long-Term Sovereign GDP}$.
 
 8. **G8: Cash Flow & Working Capital Stress Test**:
-   - [ ] $\text{Operating Cash Flow} / \text{Net Income}$ calculated across 3–5 years (flag if consistently $< 0.8$).
+   - [ ] Compare $\text{Operating Cash Flow} / \text{Net Income}$ across multiple years; explain working-capital and sector context without a universal pass threshold.
    - [ ] Cash Conversion Cycle ($\text{Debtor Days} + \text{Inventory Days} - \text{Creditor Days}$) trend analyzed.
 
 9. **G9: Countering the "Backlog Fallacy"**:
@@ -653,56 +639,26 @@ Before the Lead Agent compiles `00_Executive_Summary.md`, execute the mandatory 
     - [ ] Downside price floors cannot be heuristic moving averages or arbitrary support levels.
     - [ ] Must be strictly grounded in Tangible Book Value per Share (BVPS), replacement asset liquidation value, or stressed bear-case DCF.
 
-13. **G13: Scenario Probability & Growth Normalization**:
-    - [ ] Base + Bear + Bull probabilities sum to $100.0\% \pm 1.0\%$.
-    - [ ] 5Y forward revenue/PAT CAGRs geometrically balance to forecast models from `get_scenario_projections`.
-    - [ ] Fallback for small/mid-caps (`has_projections: false`): Subagents must synthesize scenario odds via Reverse-DCF implied market growth and 1Y–10Y P/E percentile bands (`get_valuation_bands`), explicitly labeled `[MODEL ESTIMATE - TIER B]`.
+13. **G13: Scenario Provenance**:
+    - [ ] Verify company, date, reporting basis, currency, units, and source methodology for every scenario.
+    - [ ] Report provider weights only as source assumptions. Never synthesize odds or treat them as calibrated probabilities.
 
 14. **G14: Concall Transcript & Primary Consensus Verification**:
     - [ ] Historical consensus revenue and EPS surprise % cited directly from `get_earnings_intelligence`.
     - [ ] Executive quotes cite diarized concall paragraphs with speaker name and chapter timestamp (`[MM:SS]`) from `get_earnings_intelligence` or official IR decks. Single-speaker calls attributed to `"Management (Verified Transcript)"` without inventing unverified corporate titles. Zero external audio URLs required.
 
-15. **G15: Forward Directional Prediction Rigor**:
-    - [ ] The directional prediction (🟢 Upward Bias / 🟡 Range-Bound / 🔴 Downward Pressure) must be mathematically determined using Dynamic Coverage Directional Score ($S_{\text{direction}} \in [-1.0, +1.0]$).
-    - [ ] Must state probability-weighted expected return $EV_{\text{return}}$, 3 causal upside drivers, 3 critical downside triggers, and at least 2 binary verification trigger dates from `get_company_timeline`.
+15. **G15: Forecast Claim Calibration**:
+    - [ ] Do not state directional predictions, expected returns, or scenario odds as calibrated without out-of-sample validation evidence.
+    - [ ] Label model outputs as estimates and disclose inputs, assumptions, date, currency, and limitations.
+    - [ ] Use `INSUFFICIENT_DATA` when entity, source, freshness, or coverage checks fail.
 
 ---
 
-## Directional Forecasting Engine (Up vs. Down)
+## Scenario and Directional Analysis
 
-To eliminate subjective analyst bias and transform sentiment into an actionable predictive forecast, Phase 8 synthesis executes the **Directional Forecasting Engine**:
+Present conditional bear/base/bull cases only when inputs are company-matched and sourced. State assumptions and sensitivity; provider weights are assumptions, not calibrated probabilities. Do not calculate probability-weighted returns without validated probabilities.
 
-### 1. Dynamic Coverage Directional Score ($S_{\text{direction}} \in [-1.0, +1.0]$)
-
-$$S_{\text{direction}} = \frac{\sum_{i \in \text{Active}} V_i}{|\text{Active Vectors}|}$$
-
-Where active vectors are evaluated from available primary data (minimum quorum: 2 active vectors; if $< 2$, signal is `INSUFFICIENT_DATA`):
-
-| Vector | Name | Evaluation Rule | Range | Active Condition |
-| :---: | :--- | :--- | :---: | :--- |
-| **$V_{\text{Val}}$** | **Valuation Band Vector** | $+1$ if CMP P/E $< 50\text{th}$ percentile of 5Y valuation bands (`get_valuation_bands`); $-1$ if $> 75\text{th}$ percentile; $0$ otherwise. | $\{-1, 0, +1\}$ | Always active for listed stocks with $\ge 1$ year history. |
-| **$V_{\text{Flow}}$** | **Smart-Money Flow Vector** | $+1$ if Domestic MFs/FIIs net accumulated $\ge +50\text{ bps}$ over last 4 quarters (`get_shareholding(detailed: true)`); $-1$ if dumped $\le -50\text{ bps}$; $0$ otherwise. | $\{-1, 0, +1\}$ | Always active when quarterly shareholding pattern is filed. |
-| **$V_{\text{Earn}}$** | **Earnings Surprise Vector** | $+1$ if beat consensus EPS in $\ge 3$ of last 4 reported quarters (`get_earnings_intelligence`); $-1$ if missed in $\ge 3$; $0$ otherwise. | $\{-1, 0, +1\}$ | Active when quarterly consensus estimates exist. |
-| **$V_{\text{Cons}}$** | **Broker Target Vector** | $+1$ if mean broker target $> \text{CMP} + 15\%$ (`get_brokerage_reports`); $-1$ if mean broker target $< \text{CMP}$; $0$ otherwise. | $\{-1, 0, +1\}$ | Active when institutional broker reports exist (`total_reports > 0`). |
-
-*Small/Mid-Cap Coverage Normalization*: If a stock has zero broker reports (`total_reports: 0`), $|\text{Active Vectors}| \le 3$, dynamically normalizing the denominator so missing coverage does not penalize or bias the stock.
-
-### 2. Decision Matrix & Directional Verdict
-
-- **🟢 Upward Bias (Bullish Asymmetry)**: $S_{\text{direction}} > +0.25$
-  - Rationale: Valuation discount or structural earnings surprise tailwind outweighs downside risks.
-- **🔴 Downward Pressure (Bearish Skew)**: $S_{\text{direction}} < -0.25$
-  - Rationale: Elevated historical valuation multiples, persistent consensus misses, or smart-money dumping.
-- **🟡 Range-Bound (Consolidation)**: $-0.25 \le S_{\text{direction}} \le +0.25$
-  - Rationale: Balanced forces; stock likely to trade within historical P/E median band until next earnings catalyst.
-
-### 3. Mandatory Dossier Deliverables (in `Risk_Monitoring/directional_prediction_matrix.md`)
-1. **Expected Value Payoff ($EV_{\text{return}}$)**:
-   $$EV_{\text{target}} = (P_{\text{Bull}} \times V_{\text{Bull}}) + (P_{\text{Base}} \times V_{\text{Base}}) + (P_{\text{Bear}} \times V_{\text{Bear}})$$
-   $$EV_{\text{return}} = \frac{EV_{\text{target}} - \text{CMP}}{\text{CMP}} \times 100\%$$
-2. **Top 3 Causal Up-Drivers**: Specific business volume, margin expansion, or regulatory catalysts backed by `get_price_movement_catalysts` and `get_operational_metrics`.
-3. **Top 3 Critical Down-Triggers**: Stressed raw material input costs, customer concentration shocks, or debt rollover risks backed by `get_raw_materials` and `get_factors_and_benchmarking`.
-4. **Binary Validation Milestones**: At least 2 dated upcoming corporate events from `get_company_timeline` (e.g., board meeting results date, plant commissioning milestone) that will validate or invalidate the directional thesis.
+Summarize observed evidence, counter-evidence, catalysts, and unresolved questions. A directional score may be shown only as a clearly labeled heuristic, never as a price prediction. If evidence is stale, mismatched, or insufficient, report `INSUFFICIENT_DATA`.
 
 ---
 
@@ -713,11 +669,11 @@ Where active vectors are evaluated from available primary data (minimum quorum: 
 ```markdown
 # Executive Summary
 
-## Signal Rating
+## Analyst View (Optional)
 
-🟢🟢🟢 **Strong Buy** / 🟡🟡🟡 **Hold** / 🔴🔴 **Avoid**
+**View**: [Attractive / Mixed / Unattractive / INSUFFICIENT_DATA]
 
-**Rationale**: [2-3 sentences explaining the rating]
+**Rationale**: [Evidence, counter-evidence, assumptions, and what would change this view. This is not a calibrated price prediction.]
 
 ## Investment Thesis
 
@@ -753,15 +709,15 @@ Where active vectors are evaluated from available primary data (minimum quorum: 
 2. **[Risk 2]**: [2-3 sentences with evidence]
 3. **[Risk 3]**: [2-3 sentences with evidence]
 
-## Financial Health Score
+## Financial Health Evidence
 
-**Overall**: [Excellent/Good/Fair/Poor]
+**Assessment**: [Summarize verified evidence and limitations; do not invent a numeric score.]
 
-**Breakdown**:
-- Profitability: [score/rating]
-- Cash Flow Quality: [score/rating]
-- Balance Sheet Strength: [score/rating]
-- Growth Sustainability: [score/rating]
+**Evidence**:
+- Profitability: [reported metric, date, and source]
+- Cash Flow Quality: [reported metric, date, and source]
+- Balance Sheet Strength: [reported metric, date, and source]
+- Growth Sustainability: [reported metric, date, and source]
 
 ## Valuation Assessment
 
@@ -774,16 +730,9 @@ Where active vectors are evaluated from available primary data (minimum quorum: 
 - Margin of safety: [X]% (if undervalued)
 - Implied growth: [X]% (from reverse DCF)
 
-## Moat Assessment
+## Moat Evidence
 
-**Overall Rating**: [0-5]/5
-
-**Components**:
-- Pricing Power: [score/5] - [evidence]
-- Switching Costs: [score/5] - [evidence]
-- Network Effects: [score/5] - [evidence]
-- Cost Advantages: [score/5] - [evidence]
-- Intangible Assets: [score/5] - [evidence]
+Summarize source-reported factor axes and supporting facts. Do not invent an overall score or mix scoring scales.
 
 ## Monitoring Checklist
 
@@ -791,15 +740,15 @@ Where active vectors are evaluated from available primary data (minimum quorum: 
 - [ ] [Event/indicator that would make the bull case stronger]
 - [ ] [Event/indicator that would make the bull case stronger]
 
-**Thesis-Breaking Exit Triggers**:
-- [ ] [Event/indicator that would invalidate the investment thesis, exit immediately]
-- [ ] [Event/indicator that would invalidate the investment thesis, exit immediately]
+**Thesis Review Triggers**:
+- [ ] [Dated or measurable evidence that would require reassessment]
+- [ ] [Dated or measurable evidence that would require reassessment]
 
 ## Key Risks
 
 1. **[Risk Category]**: [description]
-   - Probability: [High/Medium/Low]
-   - Impact: [High/Medium/Low]
+   - Likelihood assessment: [Qualitative, with rationale; not a calibrated probability]
+   - Potential impact: [Range or qualitative description with assumptions]
    - Monitoring: [what to watch]
 
 2. **[Risk Category]**: [description]
@@ -855,7 +804,7 @@ After generating the final report, execute a rigorous citation audit:
 **Adjustments**:
 - Emphasize Phases 4 (solvency) and 7 (liquidation value)
 - Add: "Going Concern vs. Liquidation" analysis
-- Valuation: Focus on recovery scenarios, probability-weighted expected value
+- Valuation: Focus on recovery scenarios, explicit assumptions, and sensitivity; do not assign unsupported probabilities
 - Risk analysis: Emphasize binary outcomes and timing risks
 
 ### Scenario 2: High-Growth Company (unprofitable)

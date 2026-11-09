@@ -9,9 +9,9 @@ import { PerplexityClient } from './client/PerplexityClient.js';
 // Reserve stdout exclusively for JSON-RPC messages; divert console.log to stderr
 console.log = console.error;
 
-const client = new TijoriClient();
-const pplxClient = new PerplexityClient();
-const server = new McpServer({ name: 'tijori-finance', version: '1.0.0' });
+export const client = new TijoriClient();
+export const pplxClient = new PerplexityClient();
+export const server = new McpServer({ name: 'tijori-finance', version: '1.0.0' });
 
 export async function resolveTicker(args, tijoriClient = client, perplexityClient = pplxClient) {
   if (args?.ticker && typeof args.ticker === 'string' && args.ticker.trim()) {
@@ -21,18 +21,22 @@ export async function resolveTicker(args, tijoriClient = client, perplexityClien
       if (results && results[0]?.slug) {
         const info = await tijoriClient.resolveCompanyIds(results[0].slug).catch(() => null);
         if (info?.symbol) {
-          return perplexityClient.normalizeTicker(info.symbol);
+          return info.symbol.toUpperCase();
         }
       }
     }
-    return perplexityClient.normalizeTicker(rawTicker);
+    return rawTicker.toUpperCase().endsWith('.US')
+      ? rawTicker.toUpperCase()
+      : rawTicker.includes('.')
+      ? perplexityClient.normalizeTicker(rawTicker)
+      : rawTicker.toUpperCase();
   }
   if (args?.slug && typeof args.slug === 'string' && args.slug.trim()) {
     const info = await tijoriClient.resolveCompanyIds(args.slug.trim());
     if (!info?.symbol) {
       throw new Error(`No stock ticker found for slug: ${args.slug}`);
     }
-    return perplexityClient.normalizeTicker(info.symbol);
+    return info.symbol.toUpperCase();
   }
   throw new Error('Either ticker or slug must be provided');
 }
@@ -89,9 +93,10 @@ server.registerTool(
     inputSchema: {
       slug: z.string(),
       type: z.enum(['pl', 'bs', 'cf', 'ratios', 'quarterly']),
+      basis: z.enum(['consolidated', 'standalone']).optional(),
     },
   },
-  wrap(({ slug, type }) => client.getFinancials(slug, type))
+  wrap(({ slug, type, basis }) => client.getFinancials(slug, type, { basis }))
 );
 
 // 5. get_shareholding
@@ -511,4 +516,3 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     process.exit(1);
   });
 }
-

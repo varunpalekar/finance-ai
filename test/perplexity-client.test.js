@@ -101,24 +101,44 @@ describe('PerplexityClient Core', () => {
     assert.equal(j2.company, 'Hero');
   });
 
+  test('fetchJson marks fresh responses with retrieval freshness metadata', async () => {
+    const client = new PerplexityClient();
+    client._rawFetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ name: 'Hero MotoCorp Limited' }),
+    });
+
+    const result = await client.fetchJson('/quote/HEROMOTOCO.NS', {
+      fresh: true,
+      ttl: 60_000,
+      cacheKey: `pplx:freshness:${Date.now()}`,
+      includeCacheMeta: true,
+    });
+
+    assert.equal(result._cache_meta.is_cached, false);
+    assert.equal(result._cache_meta.is_stale, false);
+    assert.ok(result._cache_meta.fetched_at);
+  });
+
   test('retries with bare US ticker if auto-suffixed .NS returns 404', async () => {
     const client = new PerplexityClient();
     const queried = [];
     client._rawFetch = async (url) => {
       queried.push(url);
-      if (url.includes('/CRM.NS')) {
+      if (url.includes('/SALESFORCE.NS')) {
         return { ok: false, status: 404, statusText: 'Not Found', text: async () => 'Not found' };
       }
-      if (url.includes('/CRM')) {
-        return { ok: true, status: 200, json: async () => ({ name: 'Salesforce', symbol: 'CRM' }), text: async () => 'Salesforce profile' };
+      if (url.includes('/SALESFORCE')) {
+        return { ok: true, status: 200, json: async () => ({ name: 'Salesforce', symbol: 'SALESFORCE' }), text: async () => 'Salesforce profile' };
       }
       throw new Error('Unexpected url: ' + url);
     };
 
-    const res = await client.getCompanyStrategicProfile('CRM');
+    const res = await client.getCompanyStrategicProfile('SALESFORCE');
     assert.equal(res.company_name, 'Salesforce');
-    assert.ok(queried.some(u => u.includes('/CRM.NS')), 'Must query auto-suffixed .NS first');
-    assert.ok(queried.some(u => u.includes('/quote/CRM')), 'Must fall back to bare US ticker');
+    assert.ok(queried.some(u => u.includes('/SALESFORCE.NS')), 'Must query auto-suffixed .NS first');
+    assert.ok(queried.some(u => u.includes('/quote/SALESFORCE')), 'Must fall back to bare US ticker');
   });
 
   test('getUserInfo extracts authenticated profile data or returns unauthenticated fallback', async () => {
@@ -211,5 +231,54 @@ describe('PerplexityClient High-Level Methods', () => {
     assert.equal(res.company_name, 'Hero MotoCorp Limited');
     assert.equal(res.strategic_summary.full_profile, 'Hero is leader in two wheelers.');
   });
-});
 
+  test('getEarningsIntelligence labels Indian data INR but leaves unknown market currency null', async () => {
+    const makeClient = () => {
+      const client = new PerplexityClient();
+      client.fetchJson = async endpoint => endpoint.endsWith('/analysis/1')
+        ? null
+        : [{ id: 1, actualRevenue: 1_000_000_000, estimatedRevenue: 900_000_000 }];
+      return client;
+    };
+
+    const india = await makeClient().getEarningsIntelligence('HEROMOTOCO.NS');
+    const unknown = await makeClient().getEarningsIntelligence('7203.T');
+
+    assert.equal(india.consensus_comparison.currency, 'INR');
+    assert.equal(india.consensus_comparison.actual_revenue_crores, 100);
+    assert.equal(unknown.consensus_comparison.currency, null);
+    assert.equal(unknown.consensus_comparison.actual_revenue_crores, null);
+  });
+
+  test('getEarningsIntelligence routes bare and explicit .US CRM tickers to Salesforce earnings', async () => {
+    const requests = [];
+    const events = [{
+      id: 1,
+      currency: 'USD',
+      fiscalPeriod: 'Q2',
+      fiscalYear: 2027,
+      actualRevenue: 10_000_000_000,
+      estimatedRevenue: 9_000_000_000,
+      actualEps: 2,
+      estimatedEps: 1.8
+    }];
+    const client = new PerplexityClient();
+    client.fetchJson = async endpoint => {
+      requests.push(endpoint);
+      if (endpoint.endsWith('/earnings/CRM')) return events;
+      if (endpoint.endsWith('/analysis/1')) return { analysis: '' };
+      return [];
+    };
+
+    for (const ticker of ['CRM', 'CRM.US']) {
+      const result = await client.getEarningsIntelligence(ticker);
+      assert.equal(result.ticker, 'CRM');
+      assert.equal(result.currency, 'USD');
+      assert.equal(result.active_event_id, 1);
+      assert.equal(result.historical_quarters.length, 1);
+    }
+
+    assert.ok(requests.some(endpoint => endpoint.endsWith('/earnings/CRM')));
+    assert.ok(requests.every(endpoint => !endpoint.includes('/earnings/CRM.NS')));
+  });
+});

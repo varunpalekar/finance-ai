@@ -524,8 +524,8 @@ Deploy **4 agents in parallel**:
 - Trend 2: [description] - [impact]
 
 **Geopolitical Risks**:
-- Risk 1: [description] - [probability] - [potential impact]
-- Risk 2: [description] - [probability] - [potential impact]
+- Risk 1: [description] - [qualitative likelihood and rationale, not calibrated] - [potential impact and assumptions]
+- Risk 2: [description] - [qualitative likelihood and rationale, not calibrated] - [potential impact and assumptions]
 
 **Structural vs. Cyclical Factors**:
 - Structural (long-term): [factors]
@@ -852,7 +852,7 @@ Deploy **4 agents in parallel**:
 **Mandatory Requirements & Data to Find**:
 - Extract Cash from Operations (OCF), Cash used in Investing (Capex), and Cash from Financing directly from the official statutory Cash Flow Statement (not secondary P&L summaries).
 - Audit the Balance Sheet line "Other Assets" (encompassing Trade Receivables, Contract Assets, and Unbilled Revenue). If Other Assets expand significantly (e.g. >20% YoY or >50% of revenue), execute a mandatory counterparty payment delay audit.
-- Compute OCF/Net Income ratio for each individual year. **Flag immediately if any single year OCF/NI < 0.8x or is negative**.
+- Compare OCF/Net Income across multiple years. Investigate sustained divergence using working-capital and sector context; no single-year threshold determines quality.
 - Free Cash Flow (FCF = OCF - Capex) and FCF conversion history.
 - Concession SPV capex tracking: Disaggregate capital deployed into concession SPVs (e.g. Smart Meters, HAM roads) during the installation phase before annuity onset.
 
@@ -1293,7 +1293,7 @@ Deploy **4 agents in parallel**:
 - What would a severe recessionary stress test look like?
 
 **Data to Find**:
-- 3 to 5 distinct failure scenarios with estimated probability and financial impact
+- 3 to 5 distinct failure scenarios with evidence, qualitative likelihood rationale, and financial impact assumptions (no uncalibrated probability)
 - Sensitivity of EBITDA to raw material inflation or tariff adjustments
 - Debt refinancing risks under rising interest rates
 - Downside valuation floor (tangible book value, trough multiple, replacement cost)
@@ -1362,7 +1362,7 @@ Deploy **4 agents in parallel**:
 
 ### Objective
 
-Quantify the durability of the company's competitive advantage (economic moat), benchmark statistical P/E valuation percentile bands using `get_valuation_bands`, ingest probabilistic Base/Bear/Bull forward scenario models from `get_scenario_projections`, analyze multi-quarter consensus revenue/EPS surprises via `get_earnings_intelligence`, and compute intrinsic value and margin of safety.
+Assess the company's competitive evidence and statistical P/E bands using `get_valuation_bands`; analyze source-verified conditional scenarios and consensus surprises; disclose assumptions and valuation limitations. Do not infer forecast probabilities from historical valuation or consensus alone.
 
 ### Multi-Agent Deployment Strategy
 
@@ -1370,7 +1370,7 @@ Deploy **4 agents in parallel**:
 
 **Primary MCP Tools for Phase 7**:
 - `mcp__tijori-finance__get_valuation_bands`: Extract 1Y, 3Y, 5Y, 10Y daily statistical P/E percentile valuation bands (min, p25, median, p75, max) and peer multiples.
-- `mcp__tijori-finance__get_scenario_projections`: Extract forward-looking Base, Bear, Bull probabilistic scenario models with odds, key drivers, and 5-year financial forecast lines.
+- `mcp__tijori-finance__get_scenario_projections`: Check for company-matched conditional cases and source assumptions. Reject sample/mismatched reports; do not infer missing odds.
 - `mcp__tijori-finance__get_earnings_intelligence`: Extract consensus revenue/EPS surprises and diarized concall transcripts.
 - `stock-research_yfinance` / `yfinance-mcp` (`yfinance_get_ticker_info`, `yfinance_get_price_history`).
 
@@ -1464,28 +1464,24 @@ Deploy **4 agents in parallel**:
 
 ---
 
-#### Agent 7D: Scenario Modeling & Margin of Safety (from `get_scenario_projections`)
+#### Agent 7D: Conditional Scenarios & Valuation Sensitivity
 
-**Objective**: Construct probabilistic Base, Bear, and Bull scenario models using `get_scenario_projections` (or Reverse-DCF fallback when `has_projections: false`).
+**Objective**: Compare conditional outcomes from verified company-specific inputs. These are assumption-driven cases, not predictions.
 
 **Scenario Framework**:
-- **Primary Source**: Ingest authentic Base, Bear, Bull probability odds and 5Y forward revenue/PAT forecast lines from `get_scenario_projections`.
-- **Small-Cap Fallback (`has_projections: false`)**: When a company has no scenario model on Tijori, synthesize probabilities using Reverse-DCF implied growth and historical P/E bands from `get_valuation_bands`, labeled `[MODEL ESTIMATE - TIER B]`.
-- **Normalization Rule**: Base Case Probability + Bear Case Probability + Bull Case Probability MUST equal $100.0\% \pm 1.0\%$.
+- Verify target company, as-of date, reporting basis, currency, units, and source before using any scenario data.
+- Present provider weights only as source assumptions. They are not calibrated probabilities unless an out-of-sample validation study supports that claim.
+- If projections are absent or mismatched, report `INSUFFICIENT_DATA`; do not manufacture odds or expected returns.
 
 **Output Structure**:
 ```markdown
-## Probabilistic Scenario Valuation Model (from `get_scenario_projections`)
+## Conditional Scenario Analysis
 
-| Scenario | Probability (%) | Key Operational Drivers & Triggers | Implied Target Price (₹) | Upside / Downside vs. CMP |
-| :--- | :---: | :--- | :---: | :---: |
-| **Bear Case** | [Prob %] | [Negative drivers: volume degrowth, margin squeeze] | [Price] | [+/- %] |
-| **Base Case** | [Prob %] | [Consensus operational expansion on schedule] | [Price] | [+/- %] |
-| **Bull Case** | [Prob %] | [Accelerated realization, capacity ramp-up] | [Price] | [+/- %] |
-| **Probability-Weighted EV** | **100.0%** | **Expected Value Target Price: ₹ [EV_target]** | — | **[EV_return %]** |
-
-$$EV_{\text{target}} = (P_{\text{Bull}} \times V_{\text{Bull}}) + (P_{\text{Base}} \times V_{\text{Base}}) + (P_{\text{Bear}} \times V_{\text{Bear}})$$
-$$EV_{\text{return}} = \frac{EV_{\text{target}} - \text{CMP}}{\text{CMP}} \times 100\%$$
+| Case | Verified inputs and assumptions | Conditional financial outcome | Sensitivities / evidence that would invalidate it |
+| :--- | :--- | :--- | :--- |
+| Bear | [Source, date, and assumptions] | [Estimate with unit and currency] | [Key sensitivities] |
+| Base | [Source, date, and assumptions] | [Estimate with unit and currency] | [Key sensitivities] |
+| Bull | [Source, date, and assumptions] | [Estimate with unit and currency] | [Key sensitivities] |
 ```
 
 ---
@@ -1494,39 +1490,31 @@ $$EV_{\text{return}} = \frac{EV_{\text{target}} - \text{CMP}}{\text{CMP}} \times
 
 **Report Files Generated**:
 - `07_Valuation_Moat.md`
-- `Valuation/scenario_probability_model.md`
+- `Valuation/conditional_scenarios.md`
 - `Valuation/dcf_analysis.md`
 - `Valuation/historical_multiples.md`
 - `Valuation/reverse_dcf_implied_growth.md`
 
 ---
 
-## Phase 8: Final Synthesis & Directional Prediction Dossier
+## Phase 8: Final Evidence Synthesis
 
 ### Objective
 
-The Lead Research Agent reconciles all findings across Phases 1 through 7, executes the **15-Point Financial Quality Assurance (FQA) Audit Gate**, generates the master executive summary (`00_Executive_Summary.md`), and executes the **Directional Forecasting Engine** (`Risk_Monitoring/directional_prediction_matrix.md`).
+The Lead Research Agent reconciles findings across Phases 1 through 7, executes the **15-Point Financial Quality Assurance (FQA) Audit Gate**, and generates the master executive summary (`00_Executive_Summary.md`). The report separates observed evidence, estimates, assumptions, and gaps; it does not promise prediction accuracy.
 
 ### Step-by-Step Lead Agent Execution
 
 1. **Perform Line-by-Line Cross-Document Audit**:
    - Verify that CMP, Market Cap, Revenue, EBITDA, PAT, and Net Debt in `00_Executive_Summary.md` match `04_Financial_Quality.md` and `07_Valuation_Moat.md` verbatim.
 2. **Execute the 15-Point FQA Audit Gate**:
-   - Verify temporal freshness, reporting boundary (`[CONSOLIDATED]`), actuals vs. estimates tagging, currency units, algebraic balancing, scenario probability sum ($100\%$), concall transcript speaker/timestamp citations, and directional scoring rigor.
-3. **Execute Directional Forecasting Engine**:
-   - Compute Dynamic Coverage Directional Score ($S_{\text{direction}} \in [-1.0, +1.0]$):
-     $$S_{\text{direction}} = \frac{\sum_{i \in \text{Active}} V_i}{|\text{Active Vectors}|}$$
-   - Assign Expected Direction Verdict:
-     - $S_{\text{direction}} > +0.25 \implies \text{🟢 Upward Bias}$ (Bullish Asymmetry)
-     - $S_{\text{direction}} < -0.25 \implies \text{🔴 Downward Pressure}$ (Bearish Skew)
-     - $-0.25 \le S_{\text{direction}} \le +0.25 \implies \text{🟡 Range-Bound}$ (Consolidation)
-   - Assign Signal Light Rating:
-     - `🟢🟢🟢 Buy / Attractive`: Substantial margin of safety ($\ge 20\%$), durable economic moat, clean governance, solid FCF conversion.
-     - `🟡🟡🟡 Hold / Fair Value`: Fairly priced ($\pm 10\%$), balanced risk-reward, awaiting operational inflection or multiple pullback.
-     - `🔴🔴 Avoid / Vulnerable`: Overvalued, declining moat, working capital stress, promoter pledge, or severe governance flags.
+   - Verify freshness, reporting basis, actuals vs. estimates, currency/units, arithmetic, scenario provenance, and citations.
+3. **Synthesize without forced predictions**:
+   - Summarize evidence, counter-evidence, assumptions, risks, and dated monitoring triggers.
+   - A directional score is a heuristic unless validated out of sample. Use `INSUFFICIENT_DATA` when evidence is stale, mismatched, or inadequate.
 4. **Draft Master Documents**:
-   - `00_Executive_Summary.md`: Master decision dashboard, directional stance, investment thesis.
-   - `Risk_Monitoring/directional_prediction_matrix.md`: Directional score breakdown, $EV_{\text{return}}$, 3 causal up-drivers, 3 down-triggers, binary timeline milestones.
+   - `00_Executive_Summary.md`: Evidence-based view, investment thesis, assumptions, risks, and open questions.
+   - `Risk_Monitoring/evidence_summary.md`: Key evidence, counter-evidence, assumptions, and dated monitoring triggers.
    - `README.md`: Index and navigation for the entire research directory.
    - `Risk_Monitoring/monitoring_checklist.md`: Specific quarterly checkpoints that would alter the investment thesis.
 
