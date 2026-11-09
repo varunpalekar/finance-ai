@@ -1,7 +1,7 @@
 ---
 name: stock-research-executor
 description: 股票投资调研执行引擎，执行8阶段投资尽调流程。接收stock-question-refiner生成的结构化调研指令，部署多智能体并行研究，生成带引用的投资尽调报告。覆盖：公司事实底座、行业周期、业务拆解、财务质量、股权治理、市场分歧、估值护城河、综合报告。当用户需要进行股票投资研究、基本面分析、投资尽调时使用此技能。
-allowed-tools: Task, WebSearch, WebFetch, mcp__web_reader__webReader, Read, Write, TodoWrite, mcp__stock-research_screener__*, mcp__stock-research_yfinance__*, mcp__screener__*, mcp__yfinance__*, mcp__tijori-finance__*, call_mcp_tool, run_command
+allowed-tools: Task, WebSearch, WebFetch, mcp__web_reader__webReader, Read, Write, TodoWrite, mcp__stock-research_screener__*, mcp__stock-research_yfinance__*, mcp__stock-research_tijori-finance__*, mcp__screener__*, mcp__yfinance__*, mcp__tijori-finance__*, call_mcp_tool, run_command
 ---
 
 # Stock Research Executor
@@ -134,13 +134,13 @@ Before dispatching research subagents or writing dossier files, the lead researc
        - `get_shareholding_pattern(symbol="<ticker>")` → Extract latest quarter shareholding and promoter pledge %.
        - `get_peer_comparison(symbol="<ticker>")` → Extract peer multiples and industry median ratios.
      - Query **Yahoo Finance MCP** (`stock-research_yfinance` or `yfinance` / `yfinance-mcp` / `yfmcp`):
-       - `yfinance_get_ticker_info(ticker="<ticker>.NS")` → Cross-validate real-time CMP, 52-week High/Low, Market Cap, Enterprise Value, Beta, and Shares Outstanding.
+       - `yfinance_get_ticker_info(symbol="<ticker>.NS")` → Cross-validate real-time CMP, 52-week High/Low, Market Cap, Enterprise Value, Beta, and Shares Outstanding.
    - **For US / Global Equities (NASDAQ, NYSE, HKEX)**:
      - Query **Yahoo Finance MCP**:
-       - `yfinance_get_ticker_info(ticker="<ticker>")` → Live quotes, trailing multiples, share counts.
-       - `yfinance_get_financials(ticker="<ticker>")` → Statutory 10-K / 10-Q statements.
-       - `yfinance_get_price_history(ticker="<ticker>")` → 3-5 year trading history.
-       - `yfinance_get_analyst_estimates(ticker="<ticker>")` → Consensus revenue/EPS targets.
+       - `yfinance_get_ticker_info(symbol="<ticker>")` → Live quotes, trailing multiples, share counts.
+       - `yfinance_get_financials(symbol="<ticker>")` → Statutory 10-K / 10-Q statements.
+       - `yfinance_get_price_history(symbol="<ticker>")` → 3-5 year trading history.
+       - `yfinance_get_analyst_estimates(symbol="<ticker>")` → Consensus revenue/EPS targets.
 
 3. **Lock Currency & Unit Denomination (Prevent 10x/100x Scale Errors)**:
    - Explicitly declare the reporting currency and denomination standard for the dossier:

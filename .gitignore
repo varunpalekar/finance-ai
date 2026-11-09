@@ -15,3 +15,7 @@ docs/superpowers/
 .DS_Store
 **/.DS_Store
 
+# Local plugin configs with machine-specific paths/tokens
+.agents/plugins/**/mcp_config.json
+stock-research/
+

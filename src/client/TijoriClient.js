@@ -12,7 +12,7 @@ const pdfParse = require('pdf-parse');
 const BASE_URL = 'https://www.tijorifinance.com';
 const DEFAULT_LIMIT = 50;
 const FIELD_RESULT_CAP = 60;
-const DEFAULT_SESSION_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../output/session.json');
+const DEFAULT_SESSION_PATH = process.env.TIJORI_SESSION_PATH || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../output/session.json');
 
 const METRIC_MAP = {
   roe:                    'ROE',

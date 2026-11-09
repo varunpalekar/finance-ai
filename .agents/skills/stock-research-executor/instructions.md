@@ -138,7 +138,7 @@ Before planning research, the lead agent records the current date and grounds ea
        - `get_financials(symbol="<symbol>", basis="consolidated")`: Cross-validate statutory statements on the selected reporting basis.
        - `get_shareholding_pattern(symbol="<symbol>")`: Cross-validate latest quarter promoter, FII, DII holding and promoter pledge %.
      - Query **Yahoo Finance MCP** (`stock-research_yfinance` / `yfinance-mcp`):
-       - `yfinance_get_ticker_info(ticker="<ticker>")`: Cross-validate real-time CMP, Market Cap, 52-week High/Low, Beta, Shares Outstanding.
+       - `yfinance_get_ticker_info(symbol="<ticker>")`: Cross-validate real-time CMP, Market Cap, 52-week High/Low, Beta, Shares Outstanding.
    - **For US / Global Equities (NASDAQ, NYSE, HKEX)**:
      - Bypass Indian-only Tijori tools. Query Perplexity Finance (`get_company_strategic_profile`, `get_price_movement_catalysts`) + Yahoo Finance (`yfinance_get_ticker_info`, `yfinance_get_financials`, `yfinance_get_analyst_estimates`, `yfinance_get_price_history`) + SEC EDGAR via `mcp__web_reader__webReader`.
 

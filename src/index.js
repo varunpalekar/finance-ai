@@ -1,6 +1,8 @@
+#!/usr/bin/env node
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TijoriClient } from './client/TijoriClient.js';
@@ -510,7 +512,14 @@ async function main() {
   await server.connect(transport);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+const isEntry = Boolean(
+  process.argv[1] && (
+    fileURLToPath(import.meta.url) === path.resolve(process.argv[1]) ||
+    (fs.existsSync(process.argv[1]) && fileURLToPath(import.meta.url) === fs.realpathSync(process.argv[1]))
+  )
+);
+
+if (isEntry) {
   main().catch(err => {
     process.stderr.write(`[tijori-mcp] Fatal: ${err.message}\n`);
     process.exit(1);

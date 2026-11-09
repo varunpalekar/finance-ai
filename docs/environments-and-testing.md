@@ -22,6 +22,7 @@ Status tracking for prerequisites, local execution environments, test suites, an
 | Test Target | Execution Command | Status | Coverage / Focus |
 | :--- | :--- | :--- | :--- |
 | **Unit, Mock & Conditional Live Suite** | `npm test` | Verified | 161/161 passed on 2026-11-09. Includes offline fixtures and live contracts when network/session access is available; conditional live suites may skip on provider preflight failures. |
+| **Stock Research Executor Contract Suite** | `node --test test/stock-research-executor.test.js` | Verified | 4/4 passed. Verifies 4-pillar tool declarations, Gate G1-G15 adherence, Step 0 ground-truth schemas, and 33-tool phase mapping. |
 | **Live Provider Preflight Contracts** | `node --test test/live-preflight.test.js` | Verified | 4/4 passed. HTTP and network failures are reported; explicit `npm run test:live` and `npm run test:pplx` runs fail instead of silently skipping. |
 | **Tijori Live Integration Suite** | `npm run test:live` | Verified | 31/31 passed with no skips on 2026-11-09. Covers all 28 Tijori MCP tools, source reporting basis, nested financial rows, finite/bounded metrics, and `get_user_info`. |
 | **Perplexity Live Integration Suite** | `npm run test:pplx` | Verified | 17/17 passed with no skips on 2026-11-09. Covers all 5 Perplexity tools, source-derived earnings arithmetic, quote freshness/source comparison, USD/INR units, transcript chapter bounds, BSE resolution, and bare/`.US` CRM earnings. |
