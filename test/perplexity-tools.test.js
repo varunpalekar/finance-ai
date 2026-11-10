@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import { PerplexityClient } from '../src/client/PerplexityClient.js';
 import { resolveTicker } from '../src/index.js';
 
@@ -63,7 +64,10 @@ describe('Perplexity MCP Tool Helpers & Registration', () => {
   });
 
   test('src/index.js registers all 5 Perplexity tools', () => {
-    const code = fs.readFileSync('src/index.js', 'utf8');
+    const indexCode = fs.readFileSync('src/index.js', 'utf8');
+    const toolsDir = 'src/tools';
+    const toolsCode = fs.readdirSync(toolsDir).map(f => fs.readFileSync(path.join(toolsDir, f), 'utf8')).join('\n');
+    const code = `${indexCode}\n${toolsCode}`;
     const tools = [
       'get_price_movement_catalysts',
       'get_brokerage_reports',

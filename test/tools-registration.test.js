@@ -1,9 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 
 test('src/index.js exports complete 28-tool registry with correct Zod schemas and error wrapping', () => {
-  const code = fs.readFileSync('src/index.js', 'utf8');
+  const indexCode = fs.readFileSync('src/index.js', 'utf8');
+  const toolsDir = 'src/tools';
+  const toolsCode = fs.readdirSync(toolsDir).map(f => fs.readFileSync(path.join(toolsDir, f), 'utf8')).join('\n');
+  const code = `${indexCode}\n${toolsCode}`;
   const newTools = [
     'get_factors_and_benchmarking',
     'get_valuation_bands',
