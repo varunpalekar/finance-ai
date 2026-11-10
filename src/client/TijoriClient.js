@@ -40,6 +40,7 @@ import {
   parseKnowledgeBaseHtml,
   parseOperationalMetricsInitial,
 } from '../parsers/tijori/markets.js';
+import { parseGoogleNewsXml } from '../parsers/tijori/news.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -1349,37 +1350,7 @@ export class TijoriClient {
     try {
       const fetched = await this._fetch(rssUrl, { fresh });
       const xml = await fetched.response.text();
-      const $ = cheerio.load(xml, { xmlMode: true });
-
-      $('item').each((_, el) => {
-        const rawTitle = $(el).find('title').text().trim();
-        const link = $(el).find('link').text().trim();
-        const pubDate = $(el).find('pubDate').text().trim();
-        const source = $(el).find('source').text().trim();
-
-        let title = rawTitle;
-        if (source && title.endsWith(` - ${source}`)) {
-          title = title.slice(0, -(source.length + 3)).trim();
-        }
-
-        let isoDate = null;
-        if (pubDate) {
-          try {
-            isoDate = new Date(pubDate).toISOString();
-          } catch (_) {
-            isoDate = pubDate;
-          }
-        }
-
-        if (title && link) {
-          items.push({
-            title,
-            source: source || 'Unknown',
-            url: link,
-            published_at: isoDate || pubDate,
-          });
-        }
-      });
+      items = parseGoogleNewsXml(xml);
     } catch (err) {
       fetchError = err;
     }
