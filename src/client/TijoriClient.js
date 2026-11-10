@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
 import { get, set, clear, TTL, initDb } from '../cache.js';
 import { computePercentiles } from '../helpers.js';
 import { parseFinancialsHtml } from '../parsers/tijori/financials.js';
@@ -48,8 +47,7 @@ import {
   parseNicheConstituentsJson,
 } from '../parsers/tijori/company.js';
 
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+import { fetchDocument } from './TijoriDocumentFetcher.js';
 
 const BASE_URL = 'https://www.tijorifinance.com';
 const DEFAULT_LIMIT = 50;
@@ -986,83 +984,8 @@ export class TijoriClient {
     return result;
   }
 
-  async fetchDocument(url, { fresh = false, signal = AbortSignal.timeout(15000) } = {}) {
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(url);
-    } catch {
-      throw new Error('Invalid document URL');
-    }
-    if (parsedUrl.protocol !== 'https:') {
-      throw new Error('Only HTTPS URLs are supported');
-    }
-    if (parsedUrl.hostname !== 'files.tijorifinance.com') {
-      throw new Error('Only files.tijorifinance.com URLs are supported');
-    }
-
-    const cacheKey = `doc:${url}`;
-    if (this.cacheEnabled && !fresh) {
-      const cached = get(cacheKey);
-      if (cached) return cached;
-    }
-
-    this._loadSession();
-    const headers = {
-      'Referer': `${this.baseUrl}/`,
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    };
-    if (this._session.cookieHeader) {
-      headers['Cookie'] = this._session.cookieHeader;
-    }
-
-    const res = await this.fetchFn(url, {
-      signal,
-      headers,
-    });
-
-    if (res.status === 403) {
-      throw new Error('Access denied — session may have expired. Run: npm run reauth');
-    }
-    if (res.status === 404) {
-      throw new Error('Document not found at this URL');
-    }
-    if (res.status >= 400) {
-      throw new Error(`HTTP ${res.status} from CDN`);
-    }
-
-    const arrayBuffer = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const origLog = console.log;
-    const origWarn = console.warn;
-    const filterWrite = (args) => {
-      const msg = args.join(' ');
-      if (!msg.includes('TT: undefined function') && !msg.includes('Warning: TT:')) {
-        process.stderr.write(msg + '\n');
-      }
-    };
-    console.log = (...a) => filterWrite(a);
-    console.warn = (...a) => filterWrite(a);
-
-    let parsedData;
-    try {
-      parsedData = await pdfParse(buffer);
-    } finally {
-      console.log = origLog;
-      console.warn = origWarn;
-    }
-
-    const result = {
-      url,
-      pages: parsedData.numpages,
-      text: parsedData.text.trim(),
-    };
-
-    if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.PERMANENT, 'json');
-    }
-
-    return result;
+  async fetchDocument(url, options = {}) {
+    return fetchDocument(this, url, options);
   }
 
   async getFactorsAndBenchmarking(slug, { fresh = false } = {}) {
