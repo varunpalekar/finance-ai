@@ -1,5 +1,5 @@
 /**
- * Tijori Finance MCP — Interactive Setup Wizard
+ * finance-ai MCP — Interactive Setup Wizard
  *
  * Guides you through:
  *   1. Saving your Tijori credentials
@@ -36,7 +36,7 @@ function warn(msg)       { print(`   ${yellow('!')} ${msg}`); }
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 
 print('');
-print(bold('  Tijori Finance MCP — Setup'));
+print(bold('  finance-ai MCP — Setup'));
 print('  ─────────────────────────────────────────');
 print('  This wizard will configure everything in ~5 minutes.');
 
@@ -145,7 +145,7 @@ if (!existsSync(configPath)) {
   print('   Is Claude Desktop installed? Download from: https://claude.ai/download');
   print('   Once installed, add this block to the config file and restart Claude:');
   print('');
-  print('   ' + JSON.stringify({ mcpServers: { 'tijori-finance': mcpEntry } }, null, 4)
+  print('   ' + JSON.stringify({ mcpServers: { 'finance-ai': mcpEntry } }, null, 4)
     .split('\n').join('\n   '));
 } else {
   let config = {};
@@ -155,7 +155,7 @@ if (!existsSync(configPath)) {
     // config file exists but is empty or malformed — start fresh
   }
   config.mcpServers = config.mcpServers ?? {};
-  config.mcpServers['tijori-finance'] = mcpEntry;
+  config.mcpServers['finance-ai'] = mcpEntry;
 
   writeFileSync(configPath, JSON.stringify(config, null, 2));
   ok(`Claude Desktop configured`);
