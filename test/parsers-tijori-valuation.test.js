@@ -7,6 +7,7 @@ import {
   parseValuationBands,
   parseScenarioProjectionsHtml,
   parseFactorsAndBenchmarkingHtml,
+  parseValuationOverview,
 } from '../src/parsers/tijori/valuation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -52,4 +53,13 @@ test('parseFactorsAndBenchmarkingHtml extracts radar axes and scores from authen
   assert.ok(Array.isArray(result.radar_axes));
   assert.ok(result.radar_axes.length > 0);
   assert.ok(result.radar_axes[0].name);
+});
+
+test('parseValuationOverview extracts companyId and peers from overview html', () => {
+  const fixturePath = path.join(__dirname, 'fixtures', 'swaraj-engines-overview.html');
+  const html = fs.readFileSync(fixturePath, 'utf8');
+
+  const { companyId, peers } = parseValuationOverview(html);
+  assert.equal(companyId, 298);
+  assert.ok(Array.isArray(peers));
 });

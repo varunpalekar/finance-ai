@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import * as cheerio from 'cheerio';
 import { get, set, clear, TTL, initDb } from '../cache.js';
 import { computePercentiles } from '../helpers.js';
 import { parseFinancialsHtml } from '../parsers/tijori/financials.js';
@@ -23,6 +22,7 @@ import {
   parseValuationBands,
   parseScenarioProjectionsHtml,
   parseFactorsAndBenchmarkingHtml,
+  parseValuationOverview,
 } from '../parsers/tijori/valuation.js';
 import {
   parseCompanyOverviewHtml,
@@ -41,6 +41,12 @@ import {
   parseOperationalMetricsInitial,
 } from '../parsers/tijori/markets.js';
 import { parseGoogleNewsXml } from '../parsers/tijori/news.js';
+import {
+  parseResolveCompanyIdsHtml,
+  parseFundFlowJson,
+  parseConglomerateConstituentsJson,
+  parseNicheConstituentsJson,
+} from '../parsers/tijori/company.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -349,25 +355,9 @@ export class TijoriClient {
     }
 
     const html = await fetched.response.text();
-    const companyIdMatch = html.match(/"company_id"\s*:\s*(\d+)/);
-    const companyId = companyIdMatch ? parseInt(companyIdMatch[1], 10) : null;
+    const final = parseResolveCompanyIdsHtml(html, { slug });
 
-    let name = null;
-    let symbol = null;
-    const metaMatch = html.match(/"company"\s*:\s*"([^"]+)"\s*,\s*"company_id"\s*:\s*\d+\s*,\s*"symbol"\s*:\s*"([^"]+)"/);
-    if (metaMatch) {
-      name = metaMatch[1];
-      symbol = metaMatch[2];
-    } else {
-      const nameMatch = html.match(/"company"\s*:\s*"([^"]+)"/);
-      const symbolMatch = html.match(/"symbol"\s*:\s*"([^"]+)"/);
-      name = nameMatch ? nameMatch[1] : null;
-      symbol = symbolMatch ? symbolMatch[1] : null;
-    }
-
-    const final = { slug, company_id: companyId, name, symbol };
-
-    if (this.cacheEnabled && companyId !== null) {
+    if (this.cacheEnabled && final.company_id !== null) {
       set(cacheKey, final, TTL.PERMANENT, 'json', slug);
     }
 
@@ -393,26 +383,7 @@ export class TijoriClient {
     }
 
     const raw = await fetched.response.json();
-    const yearKey = `${numYears}yr`;
-    let result;
-    if (Array.isArray(raw?.data)) {
-      result = {
-        company_id: companyId,
-        years: numYears,
-        currency: 'INR',
-        denomination: 'Crores (1 Cr = 10,000,000 INR)',
-        sources: raw.data.find(d => d.name === 'sources')?.data?.[yearKey] ?? [],
-        uses: raw.data.find(d => d.name === 'uses')?.data?.[yearKey] ?? [],
-      };
-    } else {
-      result = {
-        company_id: companyId,
-        years: numYears,
-        currency: 'INR',
-        denomination: 'Crores (1 Cr = 10,000,000 INR)',
-        raw
-      };
-    }
+    const result = parseFundFlowJson(raw, companyId, numYears);
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.METRICS, 'json');
@@ -434,29 +405,7 @@ export class TijoriClient {
     }
 
     const raw = await fetched.response.json();
-    const list = raw?.data ?? raw;
-    if (!Array.isArray(list)) {
-      throw new Error(`Unexpected response from Tijori for tjiid=${tjiid}`);
-    }
-
-    const companies = list.map(item => ({
-      name: item.name,
-      slug: item.slug,
-      returns: {
-        '1D': item.data?.[0] ?? null,
-        '1W': item.data?.[1] ?? null,
-        '1M': item.data?.[2] ?? null,
-        '3M': item.data?.[3] ?? null,
-        '6M': item.data?.[4] ?? null,
-        '1Y': item.data?.[5] ?? null,
-        '2Y': item.data?.[6] ?? null,
-        '3Y': item.data?.[7] ?? null,
-        '5Y': item.data?.[8] ?? null,
-        '10Y': item.data?.[9] ?? null,
-      },
-    }));
-
-    const result = { tjiid, total: companies.length, companies };
+    const result = parseConglomerateConstituentsJson(raw, tjiid);
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.MARKETS, 'json');
@@ -478,31 +427,7 @@ export class TijoriClient {
     }
 
     const raw = await fetched.response.json();
-    const list = raw?.data ?? raw;
-    if (!Array.isArray(list)) {
-      throw new Error(`Unexpected response from Tijori for tjiid=${tjiid}`);
-    }
-
-    const companies = list.map(item => ({
-      name: item.name,
-      slug: item.slug,
-      weight_pct: item.weight ?? null,
-      eq_weight_pct: item.eq_weight ?? null,
-      returns: {
-        '1D': item.data?.[0] ?? null,
-        '1W': item.data?.[1] ?? null,
-        '1M': item.data?.[2] ?? null,
-        '3M': item.data?.[3] ?? null,
-        '6M': item.data?.[4] ?? null,
-        '1Y': item.data?.[5] ?? null,
-        '2Y': item.data?.[6] ?? null,
-        '3Y': item.data?.[7] ?? null,
-        '5Y': item.data?.[8] ?? null,
-        '10Y': item.data?.[9] ?? null,
-      },
-    }));
-
-    const result = { tjiid, total: companies.length, companies };
+    const result = parseNicheConstituentsJson(raw, tjiid);
 
     if (this.cacheEnabled) {
       set(cacheKey, result, TTL.MARKETS, 'json');
@@ -1174,42 +1099,13 @@ export class TijoriClient {
       // 1. Fetch overview page first to resolve company_id and peers
       const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
       if (overviewRes.stale) return overviewRes.stale;
-      const { $, html: overviewHtml } = overviewRes;
+      const { html: overviewHtml } = overviewRes;
 
-      let companyId = null;
-      const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
-      if (companyIdMatch) {
-        companyId = parseInt(companyIdMatch[1], 10);
-      } else {
+      let { companyId, peers } = parseValuationOverview(overviewHtml);
+      if (!companyId) {
         const ids = await this.resolveCompanyIds(slug, { fresh });
         companyId = ids?.company_id ?? null;
       }
-
-      // Extract peers from #peers_table_data
-      let peers = [];
-      try {
-        const scriptEl = $('#peers_table_data');
-        if (scriptEl.length) {
-          const raw = JSON.parse(scriptEl.html());
-          const data = raw?.[1]?.data || [];
-          peers = data.map((p) => {
-            const rawMcap = p['Market Capital'] ?? null;
-            const mcapCr = typeof rawMcap === 'number'
-              ? rawMcap
-              : (rawMcap ? parseFloat(String(rawMcap).replace(/[^\d.]/g, '')) || null : null);
-            const mcapInr = mcapCr !== null ? Math.round(mcapCr * 1e7) : null;
-            return {
-              name: p.name || null,
-              slug: p.slug || null,
-              mcap: rawMcap,
-              mcap_crores: mcapCr,
-              mcap_inr: mcapInr,
-              pe: typeof p.PE === 'number' ? p.PE : null,
-              latest_price: p['Latest Price'] ?? null,
-            };
-          });
-        }
-      } catch (_) {}
 
       if (!companyId) {
         const fallback = {
@@ -1278,7 +1174,7 @@ export class TijoriClient {
     if (this.cacheEnabled && !fresh) {
       const cached = get(htmlCacheKey, { allowStale: false });
       if (cached?.value) {
-        return { $: cheerio.load(cached.value), html: cached.value };
+        return { html: cached.value };
       }
     }
 
@@ -1288,8 +1184,7 @@ export class TijoriClient {
       if (this.cacheEnabled) {
         set(htmlCacheKey, html, TTL.OVERVIEW, 'html', slug);
       }
-      const $ = cheerio.load(html);
-      return { $, html };
+      return { html };
     } catch (err) {
       if (this.cacheEnabled && cacheKey) {
         const stale = get(cacheKey, { allowStale: true });

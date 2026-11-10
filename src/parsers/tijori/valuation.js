@@ -254,3 +254,39 @@ export function parseScenarioProjectionsHtml(html, { slug = '' } = {}) {
     forecasts,
   };
 }
+
+export function parseValuationOverview(overviewHtml) {
+  const $ = cheerio.load(overviewHtml);
+  let companyId = null;
+  const companyIdMatch = overviewHtml.match(/"company_id"\s*:\s*(\d+)/);
+  if (companyIdMatch) {
+    companyId = parseInt(companyIdMatch[1], 10);
+  }
+
+  let peers = [];
+  try {
+    const scriptEl = $('#peers_table_data');
+    if (scriptEl.length) {
+      const raw = JSON.parse(scriptEl.html());
+      const data = raw?.[1]?.data || [];
+      peers = data.map((p) => {
+        const rawMcap = p['Market Capital'] ?? null;
+        const mcapCr = typeof rawMcap === 'number'
+          ? rawMcap
+          : (rawMcap ? parseFloat(String(rawMcap).replace(/[^\d.]/g, '')) || null : null);
+        const mcapInr = mcapCr !== null ? Math.round(mcapCr * 1e7) : null;
+        return {
+          name: p.name || null,
+          slug: p.slug || null,
+          mcap: rawMcap,
+          mcap_crores: mcapCr,
+          mcap_inr: mcapInr,
+          pe: typeof p.PE === 'number' ? p.PE : null,
+          latest_price: p['Latest Price'] ?? null,
+        };
+      });
+    }
+  } catch (_) {}
+
+  return { companyId, peers };
+}
