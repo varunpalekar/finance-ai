@@ -807,9 +807,7 @@ export class TijoriClient {
     }
   }
 
-  async getCompanyTimeline(slug, { fresh = false } = {}) {
-    const cacheKey = `timeline:${slug}`;
-
+  async _getOverviewParsed(slug, cacheKey, ttl, parser, { fresh = false } = {}) {
     if (this.cacheEnabled && !fresh) {
       const cached = get(cacheKey);
       if (cached) return cached;
@@ -819,13 +817,17 @@ export class TijoriClient {
     if (overviewRes.stale) return overviewRes.stale;
     const { html } = overviewRes;
 
-    const result = parseCompanyTimelineHtml(html, { slug });
+    const result = parser(html, { slug });
 
     if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.TIMELINE, 'json', slug);
+      set(cacheKey, result, ttl, 'json', slug);
     }
 
     return result;
+  }
+
+  async getCompanyTimeline(slug, { fresh = false } = {}) {
+    return this._getOverviewParsed(slug, `timeline:${slug}`, TTL.TIMELINE, parseCompanyTimelineHtml, { fresh });
   }
 
   async getStockNews(query, { limit = 10, days = 90, fresh = false } = {}) {
@@ -889,44 +891,10 @@ export class TijoriClient {
   }
 
   async getCorporateActions(slug, { fresh = false } = {}) {
-    const cacheKey = `corporate_actions:${slug}`;
-
-    if (this.cacheEnabled && !fresh) {
-      const cached = get(cacheKey);
-      if (cached) return cached;
-    }
-
-    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
-    if (overviewRes.stale) return overviewRes.stale;
-    const { html } = overviewRes;
-
-    const result = parseCorporateActionsHtml(html, { slug });
-
-    if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.ACTIONS, 'json', slug);
-    }
-
-    return result;
+    return this._getOverviewParsed(slug, `corporate_actions:${slug}`, TTL.ACTIONS, parseCorporateActionsHtml, { fresh });
   }
 
   async getSupplyChain(slug, { fresh = false } = {}) {
-    const cacheKey = `supply_chain:${slug}`;
-
-    if (this.cacheEnabled && !fresh) {
-      const cached = get(cacheKey);
-      if (cached) return cached;
-    }
-
-    const overviewRes = await this._fetchCompanyOverviewHtml(slug, { fresh, cacheKey });
-    if (overviewRes.stale) return overviewRes.stale;
-    const { html } = overviewRes;
-
-    const result = parseSupplyChainHtml(html, { slug });
-
-    if (this.cacheEnabled) {
-      set(cacheKey, result, TTL.SUPPLY_CHAIN, 'json', slug);
-    }
-
-    return result;
+    return this._getOverviewParsed(slug, `supply_chain:${slug}`, TTL.SUPPLY_CHAIN, parseSupplyChainHtml, { fresh });
   }
 }
