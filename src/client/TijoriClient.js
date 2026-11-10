@@ -5,6 +5,15 @@ import { createRequire } from 'node:module';
 import * as cheerio from 'cheerio';
 import { get, set, clear, TTL, initDb } from '../cache.js';
 import { computePercentiles } from '../helpers.js';
+import {
+  stripSpans,
+  METRIC_MAP,
+  POPULAR_SECTORS,
+  parseFilterFields,
+  parsePopularScreensHtml,
+  buildQuery,
+  parseRunHref,
+} from '../parsers/tijori/screener.js';
 
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
@@ -14,88 +23,6 @@ const DEFAULT_LIMIT = 50;
 const FIELD_RESULT_CAP = 60;
 const DEFAULT_SESSION_PATH = process.env.TIJORI_SESSION_PATH || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../output/session.json');
 
-const METRIC_MAP = {
-  roe:                    'ROE',
-  roce:                   'ROCE',
-  debt_to_equity:         'Debt to Equity Ratio',
-  'debt to equity':       'Debt to Equity Ratio',
-  operating_margin:       'Operating Profit Margin',
-  'operating margin':     'Operating Profit Margin',
-  opm:                    'Operating Profit Margin',
-  revenue_growth:         '3yr Growth Net Sales',
-  sales_growth:           '3yr Growth Net Sales',
-  dividend_yield:         'Dividend Yield',
-  pe:                     'PE Ratio',
-  pb:                     'PB Ratio',
-  market_cap:             'Market Capitalization',
-  'market cap':           'Market Capitalization',
-  pat:                    'PAT',
-  eps:                    'EPS',
-  net_sales:              'Net Sales',
-  revenue:                'Net Sales',
-  nim:                    'Net Interest Margin',
-  'net interest margin':  'Net Interest Margin',
-  casa:                   'CASA Ratio',
-  gross_npa:              'Gross NPA',
-  net_npa:                'Net NPA',
-  crar:                   'Capital Adequacy Ratio',
-  npm:                    'Net Profit Margin',
-  'net profit margin':    'Net Profit Margin',
-  roa:                    'Return on Assets',
-  roce_3yr:               '3yr Avg ROCE',
-  ev_ebitda:              'EV/EBITDA',
-  'price to book':        'PB Ratio',
-  pat_growth:             '3yr Growth PAT',
-  'pat growth':           '3yr Growth PAT',
-  earnings_growth:        '3yr Growth PAT',
-  current_ratio:          'Current Ratio',
-  interest_coverage:      'Interest Coverage Ratio',
-  fcf:                    'Free Cash Flow',
-  'free cash flow':       'Free Cash Flow',
-  cfo:                    'Cash from Operating Activity',
-};
-
-function buildQuery(filters) {
-  const parts = [];
-  for (const [key, condition] of Object.entries(filters)) {
-    if (!condition || typeof condition !== 'object') continue;
-    const metricName = METRIC_MAP[key.toLowerCase()] ?? key;
-    if (condition.min !== undefined && Number.isFinite(Number(condition.min))) {
-      parts.push(`( ${metricName} > ${condition.min} )`);
-    }
-    if (condition.max !== undefined && Number.isFinite(Number(condition.max))) {
-      parts.push(`( ${metricName} < ${condition.max} )`);
-    }
-  }
-  if (parts.length === 0) throw new Error('No valid filter conditions provided');
-  return parts.join(' and ');
-}
-
-function safeDecode(s) {
-  try { return decodeURIComponent(s); }
-  catch { return s.replace(/\+/g, ' '); }
-}
-
-function parseRunHref(href) {
-  const qs = href.split('?')[1] ?? '';
-  const params = {};
-  for (const pair of qs.split('&')) {
-    const i = pair.indexOf('=');
-    if (i === -1) continue;
-    params[safeDecode(pair.slice(0, i)).trim()] = safeDecode(pair.slice(i + 1)).replace(/\s+/g, ' ').trim();
-  }
-  return params;
-}
-
-function stripSpans(results) {
-  return results.map(company => {
-    const clean = {};
-    for (const [k, v] of Object.entries(company)) {
-      clean[k.replace(/<[^>]*>/g, '')] = v;
-    }
-    return clean;
-  });
-}
 
 function paginate({ total_results, results }, offset, limit) {
   const page = results.slice(offset, offset + limit);
@@ -589,12 +516,7 @@ export class TijoriClient {
       }
     }
 
-    const wanted = type?.toLowerCase();
-    const terms = query.toLowerCase().trim().split(/\s+/);
-    const matches = data
-      .filter(f => (!wanted || f.type.toLowerCase() === wanted) &&
-                   terms.every(t => f.value.toLowerCase().includes(t)))
-      .map(f => ({ name: f.value, type: f.type, ...(f.unit ? { unit: f.unit } : {}) }));
+    const matches = parseFilterFields(data, { query, type });
 
     return {
       total_matches: matches.length,
@@ -653,34 +575,7 @@ export class TijoriClient {
     }
 
     const html = await fetched.response.text();
-    const $ = cheerio.load(html);
-    const found = [];
-    let category = null;
-
-    $('.popular_query_title, .query_card').each((_, el) => {
-      const $el = $(el);
-      if ($el.hasClass('popular_query_title')) {
-        category = $el.text().trim();
-        return;
-      }
-      const name = $el.find('.query_title').text().trim();
-      const description = $el.find('.query_desc').text().replace(/\s+/g, ' ').trim();
-      const href = $el.find('a[href*="query_id"]').attr('href');
-      if (name && href) found.push({ category, name, description, href });
-    });
-
-    const screens = found.map(({ category, name, description, href }) => {
-      const p = parseRunHref(href);
-      return {
-        category,
-        name,
-        description,
-        query_id: p.query_id ?? null,
-        query: p.fq || null,
-        alternate_query: p.aq || null,
-        whales: p.whales === 'true',
-      };
-    });
+    const screens = parsePopularScreensHtml(html);
 
     if (screens.length === 0) throw new Error('No popular screens found — page structure may have changed');
 
